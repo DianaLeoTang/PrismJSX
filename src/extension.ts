@@ -3,14 +3,12 @@ import ts from 'typescript';
 
 type Block = {
   range: vscode.Range;
-  kind: string;
+  kind: 'function'|'method'|'hook'|'component'|'class'|'exported'|'constant'|'type'|'interface'|'enum'|string;
   title: string;
-  enText?: string;
-  zhText?: string;
   depth: number;
 };
 
-// ---------- utils ----------
+// ---------- utils (AST) ----------
 function nodeRangeFullLines(node: ts.Node, sf: ts.SourceFile) {
   const s = sf.getLineAndCharacterOfPosition(node.getStart());
   const e = sf.getLineAndCharacterOfPosition(node.getEnd());
@@ -22,7 +20,6 @@ function getName(node: ts.Node, sf: ts.SourceFile): string {
   return '';
 }
 function isLikelyComponentNode(node: ts.Node, sf: ts.SourceFile) {
-  // 函数返回 JSX 或者名字是 PascalCase → 认为是 React 组件
   const name = getName(node, sf);
   const text = node.getText(sf);
   const returnsJSX = /return\s*<\w+/m.test(text);
@@ -33,25 +30,28 @@ function isHookName(name: string) {
   return /^use[A-Z]/.test(name);
 }
 
-// ---------- 英文 token 抽取 + 本地“直译占位” ----------
-function extractEnglishTokens(nameOrComment: string): string[] {
-  if (!nameOrComment) return [];
-  const spaced = nameOrComment
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/[_\-]+/g, ' ');
-  return spaced.split(/\s+/).filter((w) => /^[A-Za-z]+$/.test(w));
+// ---------- tokens + placeholder "translation" ----------
+function extractEnglishTokens(s: string): string[] {
+  if (!s) return [];
+  const spaced = s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_\-]+/g, ' ');
+  return spaced.split(/\s+/).filter(w => /^[A-Za-z]+$/.test(w));
 }
 function localTranslateToZh(words: string[]): string {
-  // 占位直译：先拼回原词，后续可接入 LLM 做真正翻译
+  // 占位直译（避免误译；后续可换 LLM）
   return words.join(' ');
 }
 
-// ---------- 固定色（非函数类） ----------
-const palette: Record<string, string> = {
-  component: 'rgba(109,209,124,0.18)',
-  hook:      'rgba(46,200,160,0.18)',
-  function:  'rgba(90,169,255,0.18)',
-  method:    'rgba(140,123,255,0.18)',
+// ---------- colors ----------
+const RAINBOW = [
+  'rgba(90,169,255,0.18)',   // 蓝
+  'rgba(38,166,154,0.18)',   // 青
+  'rgba(140,123,255,0.18)',  // 靛
+  'rgba(255,112,67,0.18)',   // 橙
+  'rgba(255,214,90,0.18)',   // 黄
+  'rgba(109,209,124,0.18)',  // 绿
+];
+
+const FIXED_KIND_COLOR: Record<string, string> = {
   class:     'rgba(199,116,255,0.18)',
   exported:  'rgba(255,139,77,0.18)',
   constant:  'rgba(162,177,184,0.18)',
@@ -60,39 +60,28 @@ const palette: Record<string, string> = {
   enum:      'rgba(255,157,181,0.18)',
 };
 
-
-// 函数/方法/Hook/组件：按缩进层级循环配色（类似 indent-rainbow）
-// 缩进条带用的半透明彩虹
-const functionDepthRainbow = [
-  'rgba(90,169,255,0.18)',  // 蓝
-  'rgba(38,166,154,0.18)',  // 青
-  'rgba(140,123,255,0.18)', // 靛
-  'rgba(255,112,67,0.18)',  // 橙
-  'rgba(255,214,90,0.18)',  // 黄
-];
-
-// ---------- Decoration 工具 ----------
-function makeDeco(color: string) {
-  return vscode.window.createTextEditorDecorationType({
-    // 用半透明背景色给缩进区染色（真正的范围我们在 refresh 里算）
-    backgroundColor: color,
-    isWholeLine: false,
-    overviewRulerColor: color,
-    overviewRulerLane: vscode.OverviewRulerLane.Right,
-  });
-}
-
-
-// 以“颜色”为 key 做缓存，避免重复创建大量装饰器
+// ---------- decoration cache (by color) ----------
 const decoByColor = new Map<string, vscode.TextEditorDecorationType>();
-function getColorDeco(color: string) {
+function getDeco(color: string) {
   if (!decoByColor.has(color)) {
-    decoByColor.set(color, makeDeco(color));
+    decoByColor.set(color, vscode.window.createTextEditorDecorationType({
+      isWholeLine: false,
+      backgroundColor: color,
+      overviewRulerColor: color,
+      overviewRulerLane: vscode.OverviewRulerLane.Right,
+    }));
   }
   return decoByColor.get(color)!;
 }
 
-// ---------- 语法分析（含 depth） ----------
+// ---------- simple hash for per-function color offset ----------
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0;
+  return Math.abs(h);
+}
+
+// ---------- analyze AST ----------
 function analyze(src: string, filename: string): Block[] {
   let sk = ts.ScriptKind.TSX;
   if (filename.endsWith('.ts')) sk = ts.ScriptKind.TS;
@@ -102,16 +91,15 @@ function analyze(src: string, filename: string): Block[] {
   const sf = ts.createSourceFile(filename, src, ts.ScriptTarget.Latest, true, sk);
   const out: Block[] = [];
 
-  function push(node: ts.Node, kind: string, title: string, depth: number) {
+  function push(node: ts.Node, kind: Block['kind'], title: string, depth: number) {
     out.push({ range: nodeRangeFullLines(node, sf), kind, title, depth });
   }
 
   function walk(node: ts.Node, depth: number) {
-    // class + methods
     if (ts.isClassDeclaration(node)) {
       const name = node.name?.getText(sf) || '匿名类';
       push(node, 'class', name, depth);
-      node.members.forEach((m) => {
+      node.members.forEach(m => {
         if (ts.isMethodDeclaration(m)) {
           const mn = m.name?.getText(sf) || '匿名方法';
           push(m, 'method', `${name}.${mn}`, depth + 1);
@@ -119,7 +107,6 @@ function analyze(src: string, filename: string): Block[] {
       });
     }
 
-    // 函数（声明 / 表达式 / 箭头）
     if (ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node)) {
       const name = getName(node, sf) || '匿名函数';
       if (isHookName(name)) push(node, 'hook', name, depth);
@@ -127,7 +114,6 @@ function analyze(src: string, filename: string): Block[] {
       else push(node, 'function', name, depth);
     }
 
-    // 变量声明里包裹的函数
     if (ts.isVariableDeclaration(node) && node.initializer) {
       const nm = getName(node, sf);
       const init = node.initializer;
@@ -135,28 +121,26 @@ function analyze(src: string, filename: string): Block[] {
         if (isHookName(nm)) push(node, 'hook', nm, depth);
         else if (isLikelyComponentNode(init, sf) || isLikelyComponentNode(node, sf)) push(node, 'component', nm, depth);
         else push(node, 'function', nm, depth);
-      } else if (init && (ts.isObjectLiteralExpression(init) || ts.isArrayLiteralExpression(init))) {
+      } else if (ts.isObjectLiteralExpression(init) || ts.isArrayLiteralExpression(init)) {
         push(node, 'constant', nm || '常量', depth);
       }
     }
 
-    // 类型 / 接口 / 枚举
     if (ts.isTypeAliasDeclaration(node)) push(node, 'type', node.name.getText(sf), depth);
     if (ts.isInterfaceDeclaration(node)) push(node, 'interface', node.name.getText(sf), depth);
     if (ts.isEnumDeclaration(node)) push(node, 'enum', node.name.getText(sf), depth);
 
-    // 导出标记
     const isExported = (ts.getCombinedModifierFlags(node as any) & ts.ModifierFlags.Export) !== 0;
     if (isExported && !ts.isSourceFile(node)) {
       const nm = getName(node, sf) || 'exported';
       push(node, 'exported', nm, depth);
     }
 
-    ts.forEachChild(node, (ch) => walk(ch, depth + 1));
+    ts.forEachChild(node, ch => walk(ch, depth + 1));
   }
   walk(sf, 0);
 
-  // 去重
+  // de-dup
   const uniq = new Map<string, Block>();
   for (const b of out) {
     const key = `${b.range.start.line}-${b.range.end.line}-${b.kind}-${b.title}`;
@@ -165,88 +149,111 @@ function analyze(src: string, filename: string): Block[] {
   return Array.from(uniq.values());
 }
 
-// ---------- Provider：渲染 + CodeLens ----------
+// ---------- Provider (decorate + CodeLens) ----------
 class Provider implements vscode.CodeLensProvider {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
   onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
 
-    refresh() {
+  refresh() {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
     const doc = editor.document;
     if (!['typescript','javascript','typescriptreact','javascriptreact'].includes(doc.languageId)) return;
 
+    const tabSize = Number(editor.options.tabSize) || 2;
+
     const text = doc.getText();
     const blocks = analyze(text, doc.fileName);
 
-    // 颜色 -> 装饰区间列表
-    const colorBuckets = new Map<string, vscode.DecorationOptions[]>();
+    // color -> ranges
+    const buckets = new Map<string, vscode.DecorationOptions[]>();
 
     for (const b of blocks) {
-      // 1) 先决定这个 block 用什么颜色
-      const isFunctionKind =
-        b.kind === 'function' || b.kind === 'method' || b.kind === 'hook' || b.kind === 'component';
-      let color = palette[b.kind] || 'rgba(144,164,174,0.18)'; // 默认灰
-      if (isFunctionKind) {
-        const idx = Math.abs(b.depth) % functionDepthRainbow.length;
-        color = functionDepthRainbow[idx];
-      }
+      // 1) 每个“函数族”有自己的颜色偏移（不同函数不同配色）
+      const isFuncFamily = b.kind === 'function' || b.kind === 'method' || b.kind === 'hook' || b.kind === 'component';
+      const fnOffset = isFuncFamily ? (hashStr(b.title + ':' + b.range.start.line) % RAINBOW.length) : 0;
 
-      // 2) 在 block 覆盖的每一行，只给“缩进区域”着色
       const startLine = b.range.start.line;
       const endLine   = b.range.end.line;
-      for (let line = startLine; line <= endLine; line++) {
-        // 跳过越界
-        if (line < 0 || line >= doc.lineCount) continue;
 
+      for (let line = startLine; line <= endLine; line++) {
+        if (line < 0 || line >= doc.lineCount) continue;
         const li = doc.lineAt(line);
-        // 空行 / 全空白行：可以跳过，或者给一个很小的条带（这里跳过）
         if (li.isEmptyOrWhitespace) continue;
 
-        const indentCols = li.firstNonWhitespaceCharacterIndex;
-        if (indentCols <= 0) continue; // 顶格不需要染色
+        // 计算“缩进级别”和每一级的列范围（按 tabSize）
+        const leading = li.firstNonWhitespaceCharacterIndex;
+        if (leading <= 0) continue;
 
-        // 只染 [列0, 列 indentCols) 的空白区
-        const range = new vscode.Range(line, 0, line, indentCols);
+        // 把 [0, leading) 切成多段，每段宽度 = tabSize（最后一段可小于 tabSize）
+        let col = 0;
+        let level = 0;
+        while (col < leading) {
+          const next = Math.min(col + tabSize, leading);
 
-        // 构造 hover / after 文本（放在 block 的第一行，避免每行都显示挤占空间）
-        const opts: vscode.DecorationOptions = { range };
-        if (line === startLine) {
-          const tokens = extractEnglishTokens(b.title);
-          const zh = tokens.length ? localTranslateToZh(tokens) : undefined;
-          opts.hoverMessage = zh
-            ? `$(comment) ${zh}\n\nEN: ${tokens.join(' ')}`
-            : `$(symbol-function) ${b.title}`;
-          // 只在首行显示一个行尾注释（避免每行重复）
-          opts.renderOptions = { after: { contentText: `// ${zh ?? b.title}` } };
+          // 2) 给每个缩进级别选择颜色：
+          //    - 函数族：使用 (fnOffset + level) 做彩虹索引
+          //    - 其他种类：固定色（按 kind）
+          let color = 'rgba(144,164,174,0.18)'; // default gray
+          if (isFuncFamily) {
+            const idx = (fnOffset + level) % RAINBOW.length;
+            color = RAINBOW[idx];
+          } else if (FIXED_KIND_COLOR[b.kind]) {
+            color = FIXED_KIND_COLOR[b.kind];
+          }
+
+          const range = new vscode.Range(line, col, line, next);
+          const opt: vscode.DecorationOptions = { range };
+
+          // 仅在函数块“首行”的第一个缩进段放注释/hover，避免重复
+          if (isFuncFamily && line === startLine && level === 0) {
+            const tokens = extractEnglishTokens(b.title);
+            const zh = tokens.length ? localTranslateToZh(tokens) : undefined;
+            opt.hoverMessage = zh ? `$(comment) ${zh}\n\nEN: ${tokens.join(' ')}` : `$(symbol-function) ${b.title}`;
+            // 不放行尾 after，避免与缩进条带叠色；注释放到 CodeLens（见下）
+          }
+
+          const arr = buckets.get(color) || [];
+          arr.push(opt);
+          buckets.set(color, arr);
+
+          col = next;
+          level++;
         }
-
-        const arr = colorBuckets.get(color) || [];
-        arr.push(opts);
-        colorBuckets.set(color, arr);
       }
     }
 
-    // 3) 应用装饰（按颜色一次性 setDecorations）
-    for (const [color, opts] of colorBuckets) {
-      const deco = getColorDeco(color);
+    for (const [color, opts] of buckets) {
+      const deco = getDeco(color);
       editor.setDecorations(deco, opts);
     }
 
     this._onDidChangeCodeLenses.fire();
   }
 
-
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const text = document.getText();
     const blocks = analyze(text, document.fileName);
-    return blocks.map(
-      (b) => new vscode.CodeLens(b.range, { title: `● ${b.kind}  ${b.title}`, command: '' })
-    );
+
+    const lenses: vscode.CodeLens[] = [];
+    for (const b of blocks) {
+      const isFuncFamily = b.kind === 'function' || b.kind === 'method' || b.kind === 'hook' || b.kind === 'component';
+      if (!isFuncFamily) continue;
+
+      const tokens = extractEnglishTokens(b.title);
+      const zh = tokens.length ? localTranslateToZh(tokens) : undefined;
+      const title = zh ? `// ${zh}  (${b.kind})` : `// ${b.title}  (${b.kind})`;
+
+      // CodeLens 显示在“函数开始的上一行”（自然出现在上方）
+      const startLine = b.range.start.line;
+      const lensRange = new vscode.Range(Math.max(0, startLine), 0, Math.max(0, startLine), 0);
+      lenses.push(new vscode.CodeLens(lensRange, { title, command: '' }));
+    }
+    return lenses;
   }
 }
 
-// ---------- 激活 ----------
+// ---------- activate ----------
 export function activate(ctx: vscode.ExtensionContext) {
   const provider = new Provider();
   ctx.subscriptions.push(
@@ -267,9 +274,7 @@ export function activate(ctx: vscode.ExtensionContext) {
     }),
     vscode.window.onDidChangeActiveTextEditor(() => provider.refresh())
   );
-
-  // 初次渲染
-  setTimeout(() => provider.refresh(), 200);
+  setTimeout(() => provider.refresh(), 150);
 }
 
 export function deactivate() {}
