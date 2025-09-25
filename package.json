@@ -1,8 +1,8 @@
 {
-  "name": "codehue-demo",
-  "displayName": "CodeHue Demo",
+  "name": "codehue",
+  "displayName": "CodeHue",
   "description": "Structure coloring + inline translated comments (no rules mapping) for TS/JS/TSX/JSX.",
-  "publisher": "demo",
+  "publisher": "diana",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.85.0"
