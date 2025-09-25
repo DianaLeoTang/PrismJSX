@@ -60,15 +60,36 @@ const RAINBOW = [
 const decoByColor = new Map<string, vscode.TextEditorDecorationType>();
 function getDeco(color: string) {
   if (!decoByColor.has(color)) {
-    decoByColor.set(color, vscode.window.createTextEditorDecorationType({
-      backgroundColor: color,
-      isWholeLine: false,
-      overviewRulerColor: color,
-      overviewRulerLane: vscode.OverviewRulerLane.Right,
-    }));
+    decoByColor.set(
+      color,
+      vscode.window.createTextEditorDecorationType({
+        // 不再用背景区间，避免遇到“行太短画不满”
+        isWholeLine: false,
+        overviewRulerColor: color,
+        overviewRulerLane: vscode.OverviewRulerLane.Right,
+        rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+      })
+    );
   }
   return decoByColor.get(color)!;
 }
+const lineDecoByColor = new Map<string, vscode.TextEditorDecorationType>();
+function getLineDeco(color: string) {
+  if (!lineDecoByColor.has(color)) {
+    lineDecoByColor.set(
+      color,
+      vscode.window.createTextEditorDecorationType({
+        isWholeLine: true,
+        borderColor: color,
+        borderWidth: '0 0 0 2px',   // 左边 2px 连续竖线
+        borderStyle: 'solid',
+        rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+      })
+    );
+  }
+  return lineDecoByColor.get(color)!;
+}
+
 function hashStr(s: string): number { let h=0; for (let i=0;i<s.length;i++) h=((h<<5)-h)+s.charCodeAt(i)|0; return Math.abs(h); }
 function colorFor(block: Block): string {
   const idx = hashStr(block.title+':'+block.range.start.line) % RAINBOW.length;
@@ -115,7 +136,7 @@ function analyzeFunctionTree(src: string, filename: string): Block[] {
   return roots;
 }
 
-// ========== 计算“函数基准缩进” ==========
+// ========== 计算"函数基准缩进" ==========
 function computeBaseIndent(doc: vscode.TextDocument, block: Block): number {
   const start = block.range.start.line;
   const end   = block.range.end.line;
@@ -148,56 +169,80 @@ function computeBaseIndent(doc: vscode.TextDocument, block: Block): number {
   return base;
 }
 
-// ========== 渲染函数块：只涂父函数“最外层缩进”，并排除子函数行 ==========
-function decorateFunctionBlock(doc: vscode.TextDocument, block: Block, buckets: Map<string, vscode.DecorationOptions[]>) {
+// ========== 计算函数块的实际着色宽度（保证连续性） ==========
+function computeColoringWidth(doc: vscode.TextDocument, block: Block): number {
+  const start = block.range.start.line;
+  const end   = block.range.end.line;
+  const baseIndent = computeBaseIndent(doc, block);
+  
+  // 如果基准缩进为0，找函数开始行的缩进
+  if (baseIndent === 0) {
+    if (start >= 0 && start < doc.lineCount) {
+      const startLine = doc.lineAt(start);
+      const startIndent = startLine.firstNonWhitespaceCharacterIndex;
+      return Math.max(2, startIndent); // 至少2个字符宽度
+    }
+    return 2;
+  }
+  
+  return baseIndent;
+}
+
+// ========== 渲染函数块：保证颜色连续，排除子函数行 ==========
+function decorateFunctionBlock(
+  doc: vscode.TextDocument,
+  block: Block,
+  buckets: Map<string, vscode.DecorationOptions[]>
+) {
   const color = colorFor(block);
-  const deco  = getDeco(color); // ensure cached
+  getDeco(color); // 确保装饰器已创建
+  getLineDeco(color); // ★ 新增：确保边线装饰缓存
+
   const start = block.range.start.line;
   const end   = block.range.end.line;
 
-  // 先算基准缩进（不看子函数）
-  const baseIndent = computeBaseIndent(doc, block);
+  // 只看“父函数自身”的最外层缩进
+  const baseIndent = computeColoringWidth(doc, block); // 你文件里已实现，返回>=1
   if (baseIndent <= 0) return;
 
-  // 合并子函数区间
+  // 父/子互斥：父函数不覆盖子函数的行
   const childIntervals = block.children
     .map(ch => [ch.range.start.line, ch.range.end.line] as [number, number])
     .sort((a,b)=> a[0]-b[0]);
 
-  let i = 0;
-  let lastIndent = baseIndent;
+  let ci = 0;
   let firstHoverDone = false;
 
-  for (let line=start; line<=end; line++) {
-    // 跳过子函数行（它们会自己着色）
-    while (i < childIntervals.length && childIntervals[i][1] < line) i++;
-    if (i < childIntervals.length) {
-      const [cs, ce] = childIntervals[i];
-      if (line >= cs && line <= ce) { line = ce; continue; }
+  // 工具：用 NBSP 生成“虚拟缩进块”，即使该行没有任何字符也能显示背景
+  const NBSP = '\u00A0'; // non-breaking space
+  const ghost = NBSP.repeat(baseIndent);
+
+  for (let line = start; line <= end; line++) {
+    while (ci < childIntervals.length && childIntervals[ci][1] < line) ci++;
+    if (ci < childIntervals.length) {
+      const [cs, ce] = childIntervals[ci];
+      if (line >= cs && line <= ce) { line = ce; continue; } // 交给子函数去画
     }
 
     if (line < 0 || line >= doc.lineCount) break;
     const li = doc.lineAt(line);
-
-    let indentCols = li.firstNonWhitespaceCharacterIndex;
     const trimmed = li.text.trim();
 
-    if (!trimmed) {
-      // 空白行：延续上一个有效缩进
-      indentCols = lastIndent;
-    } else {
-      lastIndent = Math.max(baseIndent, indentCols);
-      // 只填到“基准缩进”，更深的缩进不涂
-      indentCols = baseIndent;
-    }
+    // —— 关键：无论该行是否有字符、是否只有 '}'，都用 before 画出 baseIndent 宽度 —— //
+    const opt: vscode.DecorationOptions = {
+      // 0 长度光标锚点 + before 渲染，避免依赖实际字符数
+      range: new vscode.Range(line, 0, line, 0),
+      renderOptions: {
+        before: {
+          contentText: ghost,        // 用 NBSP 构造一个 baseIndent 宽度的“空格块”
+          backgroundColor: color,    // 给这块上色
+          margin: '0 0 0 0',         // 紧贴行首
+        }
+      }
+    };
 
-    if (indentCols <= 0) continue;
-
-    const rng = new vscode.Range(line, 0, line, indentCols);
-    const opt: vscode.DecorationOptions = { range: rng };
-
-    // 只在函数块的第一个有效行挂 hover
-    if (!firstHoverDone && !!trimmed) {
+    // 仅在函数的第一条“非空白”行给 hover（CodeLens 注释仍在函数开头上一行）
+    if (!firstHoverDone && trimmed !== '') {
       const tokens = extractEnglishTokens(block.title);
       const zh = tokens.length ? localTranslateToZh(tokens) : undefined;
       opt.hoverMessage = zh
@@ -211,7 +256,7 @@ function decorateFunctionBlock(doc: vscode.TextDocument, block: Block, buckets: 
     buckets.set(color, arr);
   }
 
-  // 递归处理子函数
+  // 子函数整块用自己的颜色
   for (const ch of block.children) {
     decorateFunctionBlock(doc, ch, buckets);
   }
