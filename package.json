@@ -1,0 +1,40 @@
+{
+  "name": "codehue-demo",
+  "displayName": "CodeHue Demo",
+  "description": "Structure coloring + inline translated comments (no rules mapping) for TS/JS/TSX/JSX.",
+  "publisher": "demo",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:javascript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascriptreact",
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codehue.refresh",
+        "title": "CodeHue: Refresh Decorations"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/vscode": "^1.85.0",
+    "tslib": "^2.6.2"
+  }
+}
