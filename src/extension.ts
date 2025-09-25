@@ -48,33 +48,40 @@ function localTranslateToZh(words: string[]): string {
 
 // ---------- 固定色（非函数类） ----------
 const palette: Record<string, string> = {
-  component: '#6dd17c', // green
-  hook: '#2ec8a0', // teal
-  function: '#5aa9ff', // blue（仅作为基色，函数类最终走彩虹）
-  method: '#8c7bff', // indigo（仅作为基色）
-  class: '#c774ff', // purple
-  exported: '#ff8b4d', // orange
-  constant: '#a2b1b8', // gray
-  type: '#ffd65a', // yellow
-  interface: '#ffc371', // amber
-  enum: '#ff9db5', // pink
+  component: 'rgba(109,209,124,0.18)',
+  hook:      'rgba(46,200,160,0.18)',
+  function:  'rgba(90,169,255,0.18)',
+  method:    'rgba(140,123,255,0.18)',
+  class:     'rgba(199,116,255,0.18)',
+  exported:  'rgba(255,139,77,0.18)',
+  constant:  'rgba(162,177,184,0.18)',
+  type:      'rgba(255,214,90,0.18)',
+  interface: 'rgba(255,195,113,0.18)',
+  enum:      'rgba(255,157,181,0.18)',
 };
 
+
 // 函数/方法/Hook/组件：按缩进层级循环配色（类似 indent-rainbow）
-const functionDepthRainbow = ['#5aa9ff', '#26a69a', '#8c7bff', '#ff7043', '#ffd65a'];
+// 缩进条带用的半透明彩虹
+const functionDepthRainbow = [
+  'rgba(90,169,255,0.18)',  // 蓝
+  'rgba(38,166,154,0.18)',  // 青
+  'rgba(140,123,255,0.18)', // 靛
+  'rgba(255,112,67,0.18)',  // 橙
+  'rgba(255,214,90,0.18)',  // 黄
+];
 
 // ---------- Decoration 工具 ----------
 function makeDeco(color: string) {
   return vscode.window.createTextEditorDecorationType({
-    isWholeLine: true,
-    borderColor: color,
-    borderWidth: '0 0 0 3px',
-    borderStyle: 'solid',
+    // 用半透明背景色给缩进区染色（真正的范围我们在 refresh 里算）
+    backgroundColor: color,
+    isWholeLine: false,
     overviewRulerColor: color,
     overviewRulerLane: vscode.OverviewRulerLane.Right,
-    after: { margin: '0 0 0 1rem' },
   });
 }
+
 
 // 以“颜色”为 key 做缓存，避免重复创建大量装饰器
 const decoByColor = new Map<string, vscode.TextEditorDecorationType>();
@@ -163,43 +170,64 @@ class Provider implements vscode.CodeLensProvider {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
   onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
 
-  refresh() {
+    refresh() {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
     const doc = editor.document;
-    if (!['typescript', 'javascript', 'typescriptreact', 'javascriptreact'].includes(doc.languageId)) return;
+    if (!['typescript','javascript','typescriptreact','javascriptreact'].includes(doc.languageId)) return;
 
     const text = doc.getText();
     const blocks = analyze(text, doc.fileName);
 
-    // 以“颜色”为 key 聚合，避免 setDecorations 反复覆盖
+    // 颜色 -> 装饰区间列表
     const colorBuckets = new Map<string, vscode.DecorationOptions[]>();
 
     for (const b of blocks) {
-      // 计算注释
-      const tokens = extractEnglishTokens(b.title);
-      const zh = tokens.length ? localTranslateToZh(tokens) : undefined;
-      const afterText = zh ? `// ${zh}` : `// ${b.title}`;
-
-      // 计算颜色：函数/方法/Hook/组件 → 彩虹按 depth；其它 → 固定色
-      const isFunctionKind = b.kind === 'function' || b.kind === 'method' || b.kind === 'hook' || b.kind === 'component';
-      let color = palette[b.kind] || '#90a4ae';
+      // 1) 先决定这个 block 用什么颜色
+      const isFunctionKind =
+        b.kind === 'function' || b.kind === 'method' || b.kind === 'hook' || b.kind === 'component';
+      let color = palette[b.kind] || 'rgba(144,164,174,0.18)'; // 默认灰
       if (isFunctionKind) {
         const idx = Math.abs(b.depth) % functionDepthRainbow.length;
         color = functionDepthRainbow[idx];
       }
 
-      const deco = getColorDeco(color);
-      const arr = colorBuckets.get(color) || [];
-      arr.push({
-        range: b.range,
-        hoverMessage: zh ? `$(comment) ${zh}\n\nEN: ${tokens.join(' ')}` : `$(symbol-function) ${b.title}`,
-        renderOptions: { after: { contentText: afterText } },
-      });
-      colorBuckets.set(color, arr);
+      // 2) 在 block 覆盖的每一行，只给“缩进区域”着色
+      const startLine = b.range.start.line;
+      const endLine   = b.range.end.line;
+      for (let line = startLine; line <= endLine; line++) {
+        // 跳过越界
+        if (line < 0 || line >= doc.lineCount) continue;
+
+        const li = doc.lineAt(line);
+        // 空行 / 全空白行：可以跳过，或者给一个很小的条带（这里跳过）
+        if (li.isEmptyOrWhitespace) continue;
+
+        const indentCols = li.firstNonWhitespaceCharacterIndex;
+        if (indentCols <= 0) continue; // 顶格不需要染色
+
+        // 只染 [列0, 列 indentCols) 的空白区
+        const range = new vscode.Range(line, 0, line, indentCols);
+
+        // 构造 hover / after 文本（放在 block 的第一行，避免每行都显示挤占空间）
+        const opts: vscode.DecorationOptions = { range };
+        if (line === startLine) {
+          const tokens = extractEnglishTokens(b.title);
+          const zh = tokens.length ? localTranslateToZh(tokens) : undefined;
+          opts.hoverMessage = zh
+            ? `$(comment) ${zh}\n\nEN: ${tokens.join(' ')}`
+            : `$(symbol-function) ${b.title}`;
+          // 只在首行显示一个行尾注释（避免每行重复）
+          opts.renderOptions = { after: { contentText: `// ${zh ?? b.title}` } };
+        }
+
+        const arr = colorBuckets.get(color) || [];
+        arr.push(opts);
+        colorBuckets.set(color, arr);
+      }
     }
 
-    // 一次性应用不同颜色的装饰
+    // 3) 应用装饰（按颜色一次性 setDecorations）
     for (const [color, opts] of colorBuckets) {
       const deco = getColorDeco(color);
       editor.setDecorations(deco, opts);
@@ -207,6 +235,7 @@ class Provider implements vscode.CodeLensProvider {
 
     this._onDidChangeCodeLenses.fire();
   }
+
 
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const text = document.getText();
