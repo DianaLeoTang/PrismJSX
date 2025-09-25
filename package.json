@@ -15,7 +15,8 @@
     "onLanguage:javascript",
     "onLanguage:typescriptreact",
     "onLanguage:javascriptreact",
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCommand:codehue.refresh"
   ],
   "main": "./dist/extension.js",
   "contributes": {
