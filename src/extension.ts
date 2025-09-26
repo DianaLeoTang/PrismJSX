@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import ts from 'typescript';
 import { RegionDecorator } from './regionDecorator';
+import { apply as applyFunctionDecorator } from './functionDecorator';
 
 let regionDecorator: RegionDecorator | undefined;
 type Kind = 'function'|'method'|'hook'|'component';
@@ -21,7 +22,13 @@ function getName(node: ts.Node, sf: ts.SourceFile): string {
 function nodeRangeFullLines(node: ts.Node, sf: ts.SourceFile) {
   const s = sf.getLineAndCharacterOfPosition(node.getStart());
   const e = sf.getLineAndCharacterOfPosition(node.getEnd());
-  return new vscode.Range(s.line, 0, e.line, 0);
+  // return new vscode.Range(s.line, 0, e.line, 0);
+  const doc = vscode.window.activeTextEditor?.document;
+  const endChar = doc ? doc.lineAt(e.line).range.end.character : Number.MAX_SAFE_INTEGER;
+  return new vscode.Range(
+    new vscode.Position(s.line, 0),
+    new vscode.Position(e.line, endChar)
+  );
 }
 function isLikelyComponentNode(node: ts.Node, sf: ts.SourceFile) {
   const name = getName(node, sf);
@@ -210,7 +217,7 @@ function decorateFunctionBlock(doc: vscode.TextDocument, block: Block, buckets: 
           contentText: ghost,
           color: 'transparent',
           // 这里不用 backgroundColor，而是用 textDecoration 注入绝对定位的背景，能越过行缝
-          textDecoration: `;position:absolute; left:0; width:${coloringWidth}ch; top:-${GAP_PAD}px; bottom:-${GAP_PAD}px; background:${color};`,
+          textDecoration: `;position:relative; display:inline-block; width:${coloringWidth}ch; height:1em; background:${color};`,
           margin: '0 0 0 0',
         }
       }
@@ -302,12 +309,32 @@ export function activate(ctx: vscode.ExtensionContext) {
 
   if (vscode.window.activeTextEditor) {
     regionDecorator.bindToEditor(vscode.window.activeTextEditor);
+    applyFunctionDecorator(vscode.window.activeTextEditor);
   }
+
+  // 监听编辑器变化，同时应用函数装饰器
+  ctx.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor) {
+        applyFunctionDecorator(editor);
+      }
+    }),
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      const editor = vscode.window.activeTextEditor;
+      if (editor && e.document === editor.document) {
+        applyFunctionDecorator(editor);
+      }
+    })
+  );
 
   ctx.subscriptions.push(
     vscode.commands.registerCommand('codehue.refresh', () => {
       const ed = vscode.window.activeTextEditor;
-      if (ed) regionDecorator?.apply(ed);
+      if (ed) {
+        regionDecorator?.apply(ed);
+        applyFunctionDecorator(ed);
+        provider.refresh();
+      }
       vscode.window.showInformationMessage('CodeHue decorations refreshed.');
     }),
     regionDecorator,

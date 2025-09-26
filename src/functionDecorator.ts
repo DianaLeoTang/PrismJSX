@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as ts from 'typescript';
 import { onExclusionRanges } from './exclusionBus';
 
 
@@ -18,14 +19,57 @@ return ranges.filter(r => !suppressRanges.some(s => !!r.intersection(s)));
 
 
 function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] {
-// 这里用你现有的函数范围计算逻辑
-return [];
+	if (!['typescript','javascript','typescriptreact','javascriptreact'].includes(doc.languageId)) {
+		return [];
+	}
+
+	// 使用TypeScript AST来解析函数
+	let scriptKind = ts.ScriptKind.TSX;
+	if (doc.fileName.endsWith('.ts')) scriptKind = ts.ScriptKind.TS;
+	if (doc.fileName.endsWith('.js')) scriptKind = ts.ScriptKind.JS;
+	if (doc.fileName.endsWith('.jsx')) scriptKind = ts.ScriptKind.JSX;
+
+	const sourceFile = ts.createSourceFile(
+		doc.fileName,
+		doc.getText(),
+		ts.ScriptTarget.Latest,
+		true,
+		scriptKind
+	);
+
+	const ranges: vscode.Range[] = [];
+
+	function isFunctionNode(node: ts.Node): node is ts.FunctionLikeDeclaration | ts.FunctionExpression | ts.ArrowFunction {
+		return ts.isFunctionDeclaration(node) ||
+			   ts.isMethodDeclaration(node) ||
+			   ts.isFunctionExpression(node) ||
+			   ts.isArrowFunction(node);
+	}
+
+	function nodeToFullLineRange(node: ts.Node): vscode.Range {
+		const start = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+		const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
+		return new vscode.Range(start.line, 0, end.line, 0);
+	}
+
+	function visit(node: ts.Node) {
+		if (isFunctionNode(node)) {
+			ranges.push(nodeToFullLineRange(node));
+		}
+		ts.forEachChild(node, visit);
+	}
+
+	visit(sourceFile);
+	return ranges;
 }
 
 
 const functionDecorationType = vscode.window.createTextEditorDecorationType({
-isWholeLine: true,
-// 你的函数底色样式
+	isWholeLine: false,
+	backgroundColor: 'rgba(255, 255, 0, 0.1)', // 浅黄色背景
+	border: '1px solid rgba(255, 255, 0, 0.3)',
+	overviewRulerColor: 'rgba(255, 255, 0, 0.8)',
+	overviewRulerLane: vscode.OverviewRulerLane.Right,
 });
 
 

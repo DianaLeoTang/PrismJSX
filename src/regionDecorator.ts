@@ -21,7 +21,7 @@ export class RegionDecorator implements vscode.Disposable {
     return vscode.window.createTextEditorDecorationType({
       isWholeLine: true,
       backgroundColor,
-      border,
+    //   border:0,
       overviewRulerColor: 'rgba(255, 215, 0, 0.8)',
       overviewRulerLane: vscode.OverviewRulerLane.Full,
     });
