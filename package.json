@@ -25,7 +25,22 @@
         "command": "codehue.refresh",
         "title": "CodeHue: Refresh Decorations"
       }
-    ]
+    ],
+    "configuration": {
+    "title": "CodeHue",
+    "properties": {
+      "codehue.regionColor": {
+      "type": "string",
+      "default": "rgba(76, 175, 80, 0.12)",
+      "description": "Background color for // #region ... // #endregion ... blocks"
+      },
+    "codehue.regionBorder": {
+      "type": "string",
+      "default": "1px solid rgba(76,175,80,0.45)",
+      "description": "CSS-like border for region blocks"
+      }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
