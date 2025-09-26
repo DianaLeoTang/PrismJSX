@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import ts from 'typescript';
+import { RegionDecorator } from './regionDecorator';
 
+let regionDecorator: RegionDecorator | undefined;
 type Kind = 'function'|'method'|'hook'|'component';
 type Block = {
   range: vscode.Range;
@@ -295,6 +297,23 @@ export function activate(ctx: vscode.ExtensionContext) {
     vscode.window.onDidChangeActiveTextEditor(() => provider.refresh())
   );
   setTimeout(() => provider.refresh(), 120);
+  regionDecorator = new RegionDecorator(ctx);
+  regionDecorator.watchActiveEditor();
+
+  if (vscode.window.activeTextEditor) {
+    regionDecorator.bindToEditor(vscode.window.activeTextEditor);
+  }
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('codehue.refresh', () => {
+      const ed = vscode.window.activeTextEditor;
+      if (ed) regionDecorator?.apply(ed);
+      vscode.window.showInformationMessage('CodeHue decorations refreshed.');
+    }),
+    regionDecorator,
+  );
 }
 
-export function deactivate() {}
+export function deactivate() {
+  regionDecorator?.dispose(); 
+}
