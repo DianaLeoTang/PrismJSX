@@ -3,13 +3,14 @@
   "displayName": "CodeHue",
   "description": "Structure coloring + inline translated comments (no rules mapping) for TS/JS/TSX/JSX.",
   "publisher": "codehue",
-  "version": "0.0.1",
+  "version": "2.0.0",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
     "Other"
   ],
+  "icon": "images/icon.png",  
   "activationEvents": [
     "onLanguage:typescript",
     "onLanguage:javascript",
