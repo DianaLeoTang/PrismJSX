@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 ## 2.0.0 (2025-09-28)
+- 仅左侧彩虹条，不再给文字底色
+- `#region ... #endregion` 段优先，内部函数不着色但保留语义化注释
+- 修正跨行端点与嵌套重叠问题
+- DOM/JSX 标签内注释不断条
+- 函数内部注释不断条，仅裁边不分段
+- 注释掉的独立方法：不着色，显示“已注释的方法”提示
+- 默认调色板改为“赤橙黄绿青蓝紫”
 
 
 ### Features
