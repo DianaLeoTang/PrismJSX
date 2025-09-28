@@ -22,10 +22,12 @@ function getLeftStripeDecoration(color: string) {
 }
 
 /** 简单色板：可替换为你的配色或按语义分配 */
-const PALETTE = ['#6bc579', '#51b3ff', '#ffb84d', '#c98bff', '#ff6b6b', '#00c2b2', '#7f8cff'];
+const PALETTE = ['#FF0000', '#FF7F00', '#FFFF00', '#00C853','#FADB14', '#00E5FF', '#c98bff','#2979FF', '#7C4DFF'];
+
+
 
 /**
- * —— 函数范围提取（最小实现，按花括号外层范围）——
+ * —— 函数范围提取（按花括号外层范围）——
  * - 识别外层函数开始：function 关键字 或 典型的箭头/方法模式后跟 `{`
  * - 通过 { } 计数找到对应的结束行
  * - 仅保留“外层函数”，丢弃被完全包裹的内层（父级优先）
@@ -35,7 +37,6 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   const ranges: vscode.Range[] = [];
   const maybeFuncStart = (line: string) => {
     const s = line.trim();
-    // 非注释的常见函数起点（可按需扩展）
     if (s.startsWith('//') || s.startsWith('*') || s.startsWith('/*')) return false;
     return (
       /\bfunction\b/.test(s) ||                             // function foo(...) {
@@ -57,7 +58,6 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
         foundBrace = true;
         break;
       }
-      // 若遇到空行或注释行继续找
     }
     if (!foundBrace) continue;
 
@@ -66,7 +66,6 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
     let endLine = braceLine;
 
     const countBraces = (s: string) => {
-      // 极简计数：不处理字符串/模板内花括号，足以满足多数工程注释/结构上色
       for (let k = 0; k < s.length; k++) {
         const ch = s[k];
         if (ch === '{') open++;
@@ -78,7 +77,6 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
       return false;
     };
 
-    // 初始把之前读到的 '{' 计入
     countBraces(doc.lineAt(braceLine).text);
 
     while (open > 0 && endLine + 1 < doc.lineCount) {
@@ -87,20 +85,18 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
       if (done) break;
     }
 
-    // 形成范围（首行从 i，尾行收束到 endLine 的行末）
     const start = new vscode.Position(i, 0);
     const endChar = doc.lineAt(endLine).range.end.character;
     const end = new vscode.Position(endLine, endChar);
     ranges.push(new vscode.Range(start, end));
 
-    // 跳过到 endLine，避免在函数体内部再次命中“方法起点”导致重复扫描
-    i = endLine;
+    i = endLine; // 跳过函数体
   }
 
-  // 父级优先：去掉被完全包裹的内层函数（匿名/回调不再上色）
   return dropNested(ranges);
 }
 
+/** 父级优先：去掉被完全包裹的内层函数 */
 function dropNested(ranges: vscode.Range[]): vscode.Range[] {
   const sorted = ranges.slice().sort((a, b) =>
     a.start.line - b.start.line || a.end.line - b.end.line
@@ -111,15 +107,14 @@ function dropNested(ranges: vscode.Range[]): vscode.Range[] {
     if (last &&
         r.start.isAfterOrEqual(last.start) &&
         r.end.isBeforeOrEqual(last.end)) {
-      // 内层，丢弃
-      continue;
+      continue; // 内层，丢弃
     }
     out.push(r);
   }
   return out;
 }
 
-/** 对函数范围做 Region 抑制：在 suppress 段内的部分全部裁掉 */
+/** Region 抑制：在 suppress 段内的部分全部裁掉（可能产生“残片”） */
 function filterOutSuppressed(ranges: vscode.Range[], suppress: vscode.Range[]): vscode.Range[] {
   if (!suppress.length) return ranges;
   const out: vscode.Range[] = [];
@@ -128,19 +123,14 @@ function filterOutSuppressed(ranges: vscode.Range[], suppress: vscode.Range[]): 
     for (const s of suppress) {
       const next: vscode.Range[] = [];
       for (const p of pieces) {
-        // 无相交
         if (p.end.isBeforeOrEqual(s.start) || p.start.isAfterOrEqual(s.end)) {
-          next.push(p);
+          next.push(p); // 无相交
           continue;
         }
         // 左残片
-        if (p.start.isBefore(s.start)) {
-          next.push(new vscode.Range(p.start, s.start));
-        }
+        if (p.start.isBefore(s.start)) next.push(new vscode.Range(p.start, s.start));
         // 右残片
-        if (p.end.isAfter(s.end)) {
-          next.push(new vscode.Range(s.end, p.end));
-        }
+        if (p.end.isAfter(s.end))     next.push(new vscode.Range(s.end, p.end));
       }
       pieces = next;
       if (!pieces.length) break;
@@ -150,20 +140,89 @@ function filterOutSuppressed(ranges: vscode.Range[], suppress: vscode.Range[]): 
   return out;
 }
 
+/** —— 新增 —— 只保留“包含实质代码”的行段，去掉纯空白/注释的行 */
+function splitToCodeSegments(doc: vscode.TextDocument, range: vscode.Range): vscode.Range[] {
+  const startLine = range.start.line;
+  const endLine = range.end.line;
+  const segments: vscode.Range[] = [];
+
+  let inBlockComment = false;
+  let segStart = -1;
+
+  const isIgnorableLine = (line: string): boolean => {
+    const t = line.trim();
+    if (t === '') return true;           // 空行
+    if (!inBlockComment && t.startsWith('//')) return true; // 单行注释
+    // 处理块注释开始/结束
+    if (!inBlockComment && t.startsWith('/*') && !t.includes('*/')) {
+      inBlockComment = true;
+      return true;
+    }
+    if (inBlockComment) {
+      if (t.includes('*/')) inBlockComment = false;
+      return true;
+    }
+    // 纯块注释一行：/* ... */
+    if (/^\/\*.*\*\/$/.test(t)) return true;
+
+    // 其余当作“有代码”
+    return false;
+  };
+
+  for (let i = startLine; i <= endLine; i++) {
+    const text = doc.lineAt(i).text;
+    const ignorable = isIgnorableLine(text);
+
+    if (ignorable) {
+      if (segStart !== -1) {
+        // 关闭当前代码段（收束到上一行行末）
+        const endChar = doc.lineAt(i - 1).range.end.character;
+        segments.push(new vscode.Range(new vscode.Position(segStart, 0), new vscode.Position(i - 1, endChar)));
+        segStart = -1;
+      }
+      continue;
+    }
+
+    // 有代码
+    if (segStart === -1) segStart = i;
+  }
+
+  // 文件末尾/range 末尾收尾
+  if (segStart !== -1) {
+    const endChar = doc.lineAt(endLine).range.end.character;
+    segments.push(new vscode.Range(new vscode.Position(segStart, 0), new vscode.Position(endLine, endChar)));
+  }
+
+  return segments;
+}
+
+/** 把一组范围裁成“仅代码段” */
+function keepCodeOnly(doc: vscode.TextDocument, ranges: vscode.Range[]): vscode.Range[] {
+  const out: vscode.Range[] = [];
+  for (const r of ranges) {
+    const segs = splitToCodeSegments(doc, r);
+    out.push(...segs);
+  }
+  return out;
+}
+
 /** 渲染函数左侧条（不同函数不同颜色；仅左侧，不涂背景） */
 export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vscode.Range[]) {
   const doc = editor.document;
+
   // 计算外层函数范围
   const all = computeFunctionRanges(doc);
-  // Region 优先：把 Region 覆盖的部分去掉
+  // Region 优先：把 Region 覆盖的部分去掉（可能产生“夹在两个 region 之间”的残片）
   const visible = filterOutSuppressed(all, suppress);
+  // 关键：把这些残片进一步裁成“只包含实质代码”的行段；纯空行/注释段全部丢弃
+  const codeOnly = keepCodeOnly(doc, visible);
 
   // 清空旧的（保证不会残留旧范围）
   stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
 
   // 分配颜色并 set
   const groups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
-  visible.forEach((r, i) => {
+  codeOnly.forEach((r, i) => {
     const color = PALETTE[i % PALETTE.length];
     const dt = getLeftStripeDecoration(color);
     if (!groups.has(dt)) groups.set(dt, []);
