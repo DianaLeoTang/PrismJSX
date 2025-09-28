@@ -1,159 +1,152 @@
 import * as vscode from 'vscode';
-import { exclusionEmitter } from './exclusionBus';
+import { publishExclusionRanges, getLastExclusionRanges } from './exclusionBus';
 
-const REGION_START = /^\s*\/\/\s*#region\s+(.+?)\s*$/;
-const REGION_END   = /^\s*\/\/\s*#endregion\s+(.+?)\s*$/;
+let regionDecorationType: vscode.TextEditorDecorationType | null = null;
+let cachedRegions: vscode.Range[] = [];
+const REGION_COLOR = '#85e0a3';
 
-interface Pair { name: string; startLine: number; endLine: number; }
+// 允许“行尾注释里的标记”，大小写不敏感
+// 例：code ... // #region 费用明细弹窗
+//      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ← 只要这一段出现即可
+const REGION_OPEN_RE  = /\/\/\s*#region\b(?:\s+(.+?))?\s*$/i;
+const REGION_CLOSE_RE = /\/\/\s*#endregion\b(?:\s+(.+?))?\s*$/i;
 
-export class RegionDecorator implements vscode.Disposable {
-  private regionDecoration: vscode.TextEditorDecorationType;
-  private disposables: vscode.Disposable[] = [];
+// --- 事件：region 变化（供外部需要时订阅；当前由 extension.ts 统一刷新） ---
+const _regionEmitter = new vscode.EventEmitter<void>();
+export const onRegionsChanged = _regionEmitter.event;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
-    this.regionDecoration = this.createDecoration();
-  }
+// 仅左侧细条，不涂底色
+function ensureDecorationType(): vscode.TextEditorDecorationType {
+  if (regionDecorationType) return regionDecorationType;
+  regionDecorationType = vscode.window.createTextEditorDecorationType({
+    isWholeLine: true,
+    borderStyle: 'solid',
+    borderColor: REGION_COLOR,
+    borderWidth: '0 0 0 3px',
+    overviewRulerColor: REGION_COLOR,
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+  });
+  return regionDecorationType;
+}
 
-  private createDecoration(): vscode.TextEditorDecorationType {
-    const cfg = vscode.workspace.getConfiguration('codehue');
-    const backgroundColor = cfg.get<string>('regionColor', 'rgba(255, 215, 0, 0.10)');
-    const border = cfg.get<string>('regionBorder', '1px solid rgba(255, 215, 0, 0.45)');
-    return vscode.window.createTextEditorDecorationType({
-      isWholeLine: true,
-      backgroundColor,
-    //   border:0,
-      overviewRulerColor: 'rgba(255, 215, 0, 0.8)',
-      overviewRulerLane: vscode.OverviewRulerLane.Full,
-    });
-  }
+// 统一把标签做“可宽松匹配”的规范化
+function normLabel(raw?: string | null): string {
+  if (!raw) return '__default__';
+  return raw
+    .replace(/\u3000/g, ' ')      // 全角空格 -> 半角
+    .trim()
+    .replace(/\s+/g, ' ')         // 多空格合一
+    .toLowerCase();
+}
 
-  public refreshDecorationType() {
-    this.regionDecoration.dispose();
-    this.regionDecoration = this.createDecoration();
-  }
+// 行 -> 覆盖整行（到行末），不吃下一行的列0
+function lineRange(doc: vscode.TextDocument, startLine: number, endLine: number): vscode.Range {
+  const start = new vscode.Position(startLine, 0);
+  const end = new vscode.Position(endLine, doc.lineAt(endLine).range.end.character);
+  return new vscode.Range(start, end);
+}
 
-  public bindToEditor(editor: vscode.TextEditor) { this.apply(editor); }
+/**
+ * 解析配对的 region 段：
+ * - 支持行尾注释里的 #region / #endregion
+ * - 标签大小写/多空格不敏感；无标签的 #endregion 关闭最近一次 #region
+ * - 结果区间包含两端标记行
+ */
+function parseRegions(doc: vscode.TextDocument): vscode.Range[] {
+  type Frame = { label: string; line: number };
+  const stack: Frame[] = [];
+  const out: vscode.Range[] = [];
 
-  public apply(editor: vscode.TextEditor) {
-    if (!editor) return;
-    const doc = editor.document;
+  for (let i = 0; i < doc.lineCount; i++) {
+    const text = doc.lineAt(i).text;
 
-    const pairs: Pair[] = [];
-    const startStack: { name: string; line: number }[] = [];
-
-    // Scan to collect closed and unmatched regions
-    for (let line = 0; line < doc.lineCount; line++) {
-      const text = doc.lineAt(line).text;
-      let m = text.match(REGION_START);
-      if (m) { startStack.push({ name: m[1].trim(), line }); continue; }
-      m = text.match(REGION_END);
-      if (m) {
-        const name = m[1].trim();
-        for (let i = startStack.length - 1; i >= 0; i--) {
-          if (startStack[i].name === name) {
-            const start = startStack[i].line;
-            startStack.splice(i);
-            pairs.push({ name, startLine: start, endLine: line });
-            break;
+    // 优先判断 close；避免同一行先 open 后 close 的极端写法导致顺序问题
+    const closeM = text.match(REGION_CLOSE_RE);
+    if (closeM) {
+      const lbl = normLabel(closeM[1] ?? null);
+      if (stack.length) {
+        if (lbl === '__default__') {
+          // 无标签：关最近一次
+          const frame = stack.pop()!;
+          out.push(lineRange(doc, frame.line, i));
+        } else {
+          // 有标签：从栈顶往上找最近的同标签
+          let idx = -1;
+          for (let k = stack.length - 1; k >= 0; k--) {
+            if (stack[k].label === lbl) { idx = k; break; }
           }
+          if (idx >= 0) {
+            const frame = stack.splice(idx, 1)[0];
+            out.push(lineRange(doc, frame.line, i));
+          }
+          // 若未找到同标签，忽略该 close（容错）
         }
       }
+      continue; // 若同一行既有 close 又有 open，优先 close；下一轮再处理 open
     }
 
-    // Keep only outermost closed regions
-    const outermostPairs = this.collapseToOutermost(pairs);
+    const openM = text.match(REGION_OPEN_RE);
+    if (openM) {
+      const lbl = normLabel(openM[1] ?? null);
+      stack.push({ label: lbl, line: i });
+      continue;
+    }
+  }
 
-    // Unmatched #region => fallback to brace block
-    const unmatchedStarts = [...startStack];
-    const braceFallbackRanges: vscode.Range[] = [];
-    for (const s of unmatchedStarts) {
-      const r = this.findBraceRange(doc, s.line);
-      if (r && !this.intersectsAny(r, outermostPairs.map(p => this.toRange(doc, p)))) {
-        braceFallbackRanges.push(r);
+  // 未闭合的 #region 直接忽略（不生成区间），让函数装饰来处理该区域
+
+  // 仅保留“外层段”（去掉被完全包裹的嵌套段），避免叠条带
+  return outermostOnly(sortByStart(out));
+}
+
+function sortByStart(ranges: vscode.Range[]): vscode.Range[] {
+  return ranges.slice().sort((a, b) =>
+    a.start.line - b.start.line || a.end.line - b.end.line
+  );
+}
+
+function outermostOnly(ranges: vscode.Range[]): vscode.Range[] {
+  const out: vscode.Range[] = [];
+  for (const r of ranges) {
+    const last = out[out.length - 1];
+    if (!last) { out.push(r); continue; }
+    // 若当前完全被上一个覆盖，则跳过（保留外层）
+    if (r.start.isAfterOrEqual(last.start) && r.end.isBeforeOrEqual(last.end)) continue;
+    // 若有交叠但不包含：把两段分开保留（不再强行合并成“大区间”，避免跨模块）
+    if (!r.start.isAfter(last.end) && !r.end.isBefore(last.start)) {
+      // 若需要“合并相邻仅空行”可在此加贴边合并逻辑；目前严格分段以避免串色
+      if (r.end.isAfter(last.end)) {
+        // 防止顺序错乱，直接追加
+        out.push(r);
       }
+      continue;
     }
-
-    // Final decorations: outermost closed > unmatched fallback
-    const finalRanges: vscode.DecorationOptions[] = [
-      ...outermostPairs.map(p => ({ range: this.toRange(doc, p) })),
-      ...braceFallbackRanges.map(r => ({ range: r })),
-    ];
-    editor.setDecorations(this.regionDecoration, finalRanges);
-
-    // Broadcast suppression ranges so function decorators can skip coloring inside outermost regions
-    exclusionEmitter.fire(outermostPairs.map(p => this.toRange(doc, p)));
+    out.push(r);
   }
+  return out;
+}
 
-  private toRange(doc: vscode.TextDocument, p: Pair): vscode.Range {
-    const start = new vscode.Position(p.startLine, 0);
-    const end   = new vscode.Position(p.endLine, doc.lineAt(p.endLine).text.length);
-    return new vscode.Range(start, end);
+export function applyRegionDecorations(editor: vscode.TextEditor) {
+  const doc = editor.document;
+  const dt = ensureDecorationType();
+  cachedRegions = parseRegions(doc);
+
+  // 渲染左侧条
+  editor.setDecorations(dt, cachedRegions);
+  // 发布排除范围（函数装饰据此做相减）
+  publishExclusionRanges(cachedRegions);
+  _regionEmitter.fire();
+}
+
+export function disposeRegionDecorations() {
+  if (regionDecorationType) {
+    regionDecorationType.dispose();
+    regionDecorationType = null;
   }
+  cachedRegions = [];
+}
 
-  private intersects(a: vscode.Range, b: vscode.Range) { return a.intersection(b) !== undefined; }
-  private intersectsAny(r: vscode.Range, arr: vscode.Range[]) { return arr.some(x => this.intersects(r, x)); }
-
-  private collapseToOutermost(pairs: Pair[]): Pair[] {
-    const sorted = [...pairs].sort((x, y) => x.startLine - y.startLine || y.endLine - x.endLine);
-    const result: Pair[] = [];
-    for (const p of sorted) {
-      const last = result[result.length - 1];
-      if (!last) { result.push(p); continue; }
-      if (p.startLine >= last.startLine && p.endLine <= last.endLine) continue; // drop inner
-      result.push(p);
-    }
-    return result;
-  }
-
-  // From start line, find first '{' and match to its '}', return full brace block; if not closed, end of file.
-  private findBraceRange(doc: vscode.TextDocument, startLine: number): vscode.Range | null {
-    let openLine = -1, openChar = -1;
-    outer: for (let l = startLine; l < doc.lineCount; l++) {
-      const text = doc.lineAt(l).text;
-      const idx = text.indexOf('{');
-      if (idx !== -1) { openLine = l; openChar = idx; break outer; }
-    }
-    if (openLine === -1) return null;
-
-    let depth = 0;
-    for (let l = openLine; l < doc.lineCount; l++) {
-      const text = doc.lineAt(l).text;
-      const startC = (l === openLine) ? openChar : 0;
-      for (let c = startC; c < text.length; c++) {
-        const ch = text.charAt(c);
-        if (ch === '{') depth++;
-        else if (ch === '}') depth--;
-        if (depth === 0) {
-          const start = new vscode.Position(openLine, 0);
-          const end   = new vscode.Position(l, text.length);
-          return new vscode.Range(start, end);
-        }
-      }
-    }
-    const start = new vscode.Position(openLine, 0);
-    const lastLine = doc.lineCount - 1;
-    const end = new vscode.Position(lastLine, doc.lineAt(lastLine).text.length);
-    return new vscode.Range(start, end);
-  }
-
-  public watchActiveEditor() {
-    this.disposables.push(
-      vscode.window.onDidChangeActiveTextEditor((ed) => ed && this.apply(ed)),
-      vscode.workspace.onDidChangeTextDocument((e) => {
-        const ed = vscode.window.activeTextEditor;
-        if (ed && e.document === ed.document) this.apply(ed);
-      }),
-      vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('codehue.regionColor') || e.affectsConfiguration('codehue.regionBorder')) {
-          this.refreshDecorationType();
-          const ed = vscode.window.activeTextEditor; if (ed) this.apply(ed);
-        }
-      }),
-    );
-  }
-
-  public dispose() {
-    this.regionDecoration.dispose();
-    this.disposables.forEach(d => d.dispose());
-  }
+export function getRegionSuppressionRanges(): vscode.Range[] {
+  // 给函数装饰用
+  return cachedRegions.length ? cachedRegions : getLastExclusionRanges();
 }
