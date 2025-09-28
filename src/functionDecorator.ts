@@ -64,15 +64,31 @@ function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] {
 }
 
 
-const functionDecorationType = vscode.window.createTextEditorDecorationType({
-	isWholeLine: false,
-	backgroundColor: 'rgba(255, 255, 0, 0.1)', // 浅黄色背景
-	border: '1px solid rgba(255, 255, 0, 0.3)',
-	overviewRulerColor: 'rgba(255, 255, 0, 0.8)',
-	overviewRulerLane: vscode.OverviewRulerLane.Right,
-});
+// const functionDecorationType = vscode.window.createTextEditorDecorationType({
+// 	isWholeLine: false,
+// 	backgroundColor: 'rgba(255, 255, 0, 0.1)', // 浅黄色背景
+// 	border: '1px solid rgba(255, 255, 0, 0.3)',
+// 	overviewRulerColor: 'rgba(255, 255, 0, 0.8)',
+// 	overviewRulerLane: vscode.OverviewRulerLane.Right,
+// });
+/** 用颜色 -> decorationType 的简单缓存，支持“不同函数不同颜色” */
+const stripeTypeCache = new Map<string, vscode.TextEditorDecorationType>();
 
-
+function getLeftStripeDecoration(color: string) {
+  if (stripeTypeCache.has(color)) return stripeTypeCache.get(color)!;
+  const dt = vscode.window.createTextEditorDecorationType({
+    isWholeLine: true,
+    // 只画“左侧”边框，不涂背景
+    borderStyle: 'solid',
+    borderColor: color,
+    borderWidth: '0 0 0 3px',
+    // 可选：让 minimap/概览标尺也能看到
+    overviewRulerColor: color,
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+  });
+  stripeTypeCache.set(color, dt);
+  return dt;
+}
 export function apply(editor: vscode.TextEditor) {
 const funcRanges = computeFunctionRanges(editor.document);
 const visible = filterOutSuppressed(funcRanges);
