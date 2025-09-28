@@ -10,7 +10,7 @@
   "categories": [
     "Other"
   ],
-  "icon": "images/icon.png",  
+  "icon": "images/icon.png",
   "activationEvents": [
     "onLanguage:typescript",
     "onLanguage:javascript",
@@ -28,18 +28,18 @@
       }
     ],
     "configuration": {
-    "title": "CodeHue",
-    "properties": {
-      "codehue.regionColor": {
-      "type": "string",
-      "default": "rgba(76, 175, 80, 0.12)",
-      "description": "Background color for // #region ... // #endregion ... blocks"
-      },
-    "codehue.regionBorder": {
-      "type": "string",
-      "default": "1px solid rgba(76,175,80,0.45)",
-      "description": "CSS-like border for region blocks"
-      }
+      "title": "CodeHue",
+      "properties": {
+        "codehue.regionColor": {
+          "type": "string",
+          "default": "rgba(76, 175, 80, 0.12)",
+          "description": "Background color for // #region ... // #endregion ... blocks"
+        },
+        "codehue.regionBorder": {
+          "type": "string",
+          "default": "1px solid rgba(76,175,80,0.45)",
+          "description": "CSS-like border for region blocks"
+        }
       }
     }
   },
@@ -50,8 +50,9 @@
     "package": "vsce package"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
     "@types/vscode": "^1.85.0",
-    "tslib": "^2.6.2"
+    "standard-version": "^9.5.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.0"
   }
 }
