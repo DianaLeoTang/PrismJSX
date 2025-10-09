@@ -16,6 +16,7 @@ const _regionEmitter = new vscode.EventEmitter<void>();
 export const onRegionsChanged = _regionEmitter.event;
 
 // 仅左侧细条，不涂底色
+// 确保装饰类型
 function ensureDecorationType(): vscode.TextEditorDecorationType {
   if (regionDecorationType) return regionDecorationType;
   regionDecorationType = vscode.window.createTextEditorDecorationType({
@@ -30,6 +31,7 @@ function ensureDecorationType(): vscode.TextEditorDecorationType {
 }
 
 // 统一把标签做“可宽松匹配”的规范化
+// 规范化标签
 function normLabel(raw?: string | null): string {
   if (!raw) return '__default__';
   return raw
@@ -40,6 +42,7 @@ function normLabel(raw?: string | null): string {
 }
 
 // 行 -> 覆盖整行（到行末），不吃下一行的列0
+// 行范围
 function lineRange(doc: vscode.TextDocument, startLine: number, endLine: number): vscode.Range {
   const start = new vscode.Position(startLine, 0);
   const end = new vscode.Position(endLine, doc.lineAt(endLine).range.end.character);
@@ -52,6 +55,7 @@ function lineRange(doc: vscode.TextDocument, startLine: number, endLine: number)
  * - 标签大小写/多空格不敏感；无标签的 #endregion 关闭最近一次 #region
  * - 结果区间包含两端标记行
  */
+// 解析区域
 function parseRegions(doc: vscode.TextDocument): vscode.Range[] {
   type Frame = { label: string; line: number };
   const stack: Frame[] = [];
@@ -99,12 +103,14 @@ function parseRegions(doc: vscode.TextDocument): vscode.Range[] {
   return outermostOnly(sortByStart(out));
 }
 
+// 按开始位置排序
 function sortByStart(ranges: vscode.Range[]): vscode.Range[] {
   return ranges.slice().sort((a, b) =>
     a.start.line - b.start.line || a.end.line - b.end.line
   );
 }
 
+// 仅保留最外层
 function outermostOnly(ranges: vscode.Range[]): vscode.Range[] {
   const out: vscode.Range[] = [];
   for (const r of ranges) {
@@ -126,6 +132,7 @@ function outermostOnly(ranges: vscode.Range[]): vscode.Range[] {
   return out;
 }
 
+// 应用区域装饰
 export function applyRegionDecorations(editor: vscode.TextEditor) {
   const doc = editor.document;
   const dt = ensureDecorationType();
@@ -138,6 +145,7 @@ export function applyRegionDecorations(editor: vscode.TextEditor) {
   _regionEmitter.fire();
 }
 
+// 清理区域装饰
 export function disposeRegionDecorations() {
   if (regionDecorationType) {
     regionDecorationType.dispose();
@@ -146,6 +154,7 @@ export function disposeRegionDecorations() {
   cachedRegions = [];
 }
 
+// 获取区域抑制范围
 export function getRegionSuppressionRanges(): vscode.Range[] {
   // 给函数装饰用
   return cachedRegions.length ? cachedRegions : getLastExclusionRanges();

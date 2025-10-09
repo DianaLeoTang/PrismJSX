@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { applyFunctionDecorations, disposeFunctionDecorations, refreshFunctionDecorations } from './functionDecorator';
 import { applyRegionDecorations, disposeRegionDecorations, getRegionSuppressionRanges, onRegionsChanged } from './regionDecorator';
 
+// 应用所有装饰
 function applyAll(editor: vscode.TextEditor) {
   if (!editor || editor.document.isClosed) return;
   // 先渲染 region（也会计算并发布 suppress 范围）
@@ -10,6 +11,7 @@ function applyAll(editor: vscode.TextEditor) {
   applyFunctionDecorations(editor, getRegionSuppressionRanges());
 }
 
+// 激活扩展
 export function activate(context: vscode.ExtensionContext) {
   // 首次启动对激活编辑器应用
   if (vscode.window.activeTextEditor) {
@@ -56,11 +58,13 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push({ dispose: disposeAll });
 }
 
+// 清理所有资源
 function disposeAll() {
   disposeFunctionDecorations();
   disposeRegionDecorations();
 }
 
+// 停用扩展
 export function deactivate() {
   disposeAll();
 }

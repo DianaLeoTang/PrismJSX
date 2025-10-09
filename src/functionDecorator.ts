@@ -17,6 +17,7 @@ const annotationType = vscode.window.createTextEditorDecorationType({
   },
 });
 
+// 获取左侧条纹装饰
 function getLeftStripeDecoration(color: string) {
   if (stripeTypeCache.has(color)) return stripeTypeCache.get(color)!;
   const dt = vscode.window.createTextEditorDecorationType({
@@ -43,6 +44,7 @@ const PALETTE = ['#FF0000', '#FF7F00', '#FFFF00', '#00C853','#FADB14', '#00E5FF'
  * - 仅保留“外层函数”，丢弃被完全包裹的内层（父级优先）
  * - 统一半开区间并收束到“结束行行末”
  */
+// 计算函数范围
 export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] {
   const ranges: vscode.Range[] = [];
   const maybeFuncStart = (line: string) => {
@@ -107,6 +109,7 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
 }
 
 /** 父级优先：去掉被完全包裹的内层函数 */
+// 删除嵌套范围
 function dropNested(ranges: vscode.Range[]): vscode.Range[] {
   const sorted = ranges.slice().sort((a, b) =>
     a.start.line - b.start.line || a.end.line - b.end.line
@@ -125,6 +128,7 @@ function dropNested(ranges: vscode.Range[]): vscode.Range[] {
 }
 
 /** Region 抑制：在 suppress 段内的部分全部裁掉（可能产生“残片”） */
+// 过滤掉被抑制的范围
 function filterOutSuppressed(ranges: vscode.Range[], suppress: vscode.Range[]): vscode.Range[] {
   if (!suppress.length) return ranges;
   const out: vscode.Range[] = [];
@@ -150,6 +154,7 @@ function filterOutSuppressed(ranges: vscode.Range[], suppress: vscode.Range[]): 
   return out;
 }
 /** —— 仅代码段“裁边”版（不在中间切段） —— */
+// 分割为代码段
 function splitToCodeSegments(doc: vscode.TextDocument, range: vscode.Range): vscode.Range[] {
   const startLine = range.start.line;
   const endLine = range.end.line;
@@ -191,6 +196,7 @@ function splitToCodeSegments(doc: vscode.TextDocument, range: vscode.Range): vsc
 
 
 /** 把一组范围做“仅裁边”，不拆分中间逻辑 */
+// 仅保留代码
 function keepCodeOnly(doc: vscode.TextDocument, ranges: vscode.Range[]): vscode.Range[] {
   const out: vscode.Range[] = [];
   for (const r of ranges) {
@@ -202,6 +208,7 @@ function keepCodeOnly(doc: vscode.TextDocument, ranges: vscode.Range[]): vscode.
 
 
 /** 渲染函数左侧条（不同函数不同颜色；仅左侧，不涂背景） */
+// 应用函数装饰
 export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vscode.Range[]) {
   const doc = editor.document;
 
@@ -251,15 +258,18 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
 
 }
 
+// 刷新函数装饰
 export function refreshFunctionDecorations() {
   // 这里留空即可；真正刷新在 extension.ts 里通过 applyAll 触发
 }
 
+// 清理函数装饰
 export function disposeFunctionDecorations() {
   stripeTypeCache.forEach((dt) => dt.dispose());
   stripeTypeCache.clear();
 }
 /** 提取函数行的中文语义化注释 */
+// 提取函数标签
 function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): string {
   // 取当前行 + 下一行，容错多行定义
   const l1 = doc.lineAt(startLine).text.trim();
@@ -283,6 +293,7 @@ function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): stri
 }
 
 /** 扫描“被注释掉的单独方法”行，生成注释装饰（不画条） */
+// 查找被注释掉的函数注释
 function findCommentedOutFunctionNotes(doc: vscode.TextDocument): vscode.DecorationOptions[] {
   const notes: vscode.DecorationOptions[] = [];
   for (let i = 0; i < doc.lineCount; i++) {
