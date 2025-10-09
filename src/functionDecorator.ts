@@ -223,7 +223,8 @@ function splitToCodeSegments(doc: vscode.TextDocument, range: vscode.Range): vsc
     if (!inBlockComment && t.startsWith('/*') && !t.includes('*/')) { inBlockComment = true; return true; }
     if (inBlockComment) { if (t.includes('*/')) inBlockComment = false; return true; }
     if (/^\/\*.*\*\/$/.test(t)) return true;   // 同行块注释
-    if (isOnlyPunct(t)) return true;          // 仅 } , 等
+    // 不要忽略只包含 } 的行，因为这是函数结束花括号
+    if (isOnlyPunct(t) && !t.includes('}')) return true;  // 仅其他标点符号，但不包括 }
     return false;
   };
 
