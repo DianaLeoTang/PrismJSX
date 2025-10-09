@@ -149,62 +149,6 @@ function filterOutSuppressed(ranges: vscode.Range[], suppress: vscode.Range[]): 
   }
   return out;
 }
-
-/** —— 新增 —— 只保留“包含实质代码”的行段，去掉纯空白/注释的行 */
-// function splitToCodeSegments(doc: vscode.TextDocument, range: vscode.Range): vscode.Range[] {
-//   const startLine = range.start.line;
-//   const endLine = range.end.line;
-//   const segments: vscode.Range[] = [];
-
-//   let inBlockComment = false;
-//   let segStart = -1;
-
-//   const isIgnorableLine = (line: string): boolean => {
-//     const t = line.trim();
-//     if (t === '') return true;           // 空行
-//     if (!inBlockComment && t.startsWith('//')) return true; // 单行注释
-//     // 处理块注释开始/结束
-//     if (!inBlockComment && t.startsWith('/*') && !t.includes('*/')) {
-//       inBlockComment = true;
-//       return true;
-//     }
-//     if (inBlockComment) {
-//       if (t.includes('*/')) inBlockComment = false;
-//       return true;
-//     }
-//     // 纯块注释一行：/* ... */
-//     if (/^\/\*.*\*\/$/.test(t)) return true;
-
-//     // 其余当作“有代码”
-//     return false;
-//   };
-
-//   for (let i = startLine; i <= endLine; i++) {
-//     const text = doc.lineAt(i).text;
-//     const ignorable = isIgnorableLine(text);
-
-//     if (ignorable) {
-//       if (segStart !== -1) {
-//         // 关闭当前代码段（收束到上一行行末）
-//         const endChar = doc.lineAt(i - 1).range.end.character;
-//         segments.push(new vscode.Range(new vscode.Position(segStart, 0), new vscode.Position(i - 1, endChar)));
-//         segStart = -1;
-//       }
-//       continue;
-//     }
-
-//     // 有代码
-//     if (segStart === -1) segStart = i;
-//   }
-
-//   // 文件末尾/range 末尾收尾
-//   if (segStart !== -1) {
-//     const endChar = doc.lineAt(endLine).range.end.character;
-//     segments.push(new vscode.Range(new vscode.Position(segStart, 0), new vscode.Position(endLine, endChar)));
-//   }
-
-//   return segments;
-// }
 /** —— 仅代码段“裁边”版（不在中间切段） —— */
 function splitToCodeSegments(doc: vscode.TextDocument, range: vscode.Range): vscode.Range[] {
   const startLine = range.start.line;
