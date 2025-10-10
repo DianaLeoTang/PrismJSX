@@ -240,8 +240,10 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
   for (const r of forNoteRanges) {
     const line = r.start.line;
     const text = extractFunctionLabel(doc, line);
+    const targetLine = line > 0 ? line - 1 : line;
+    const targetPos = doc.lineAt(targetLine).range.end;
     annotations.push({
-      range: new vscode.Range(new vscode.Position(line, doc.lineAt(line).range.end.character), new vscode.Position(line, doc.lineAt(line).range.end.character)),
+      range: new vscode.Range(targetPos, targetPos),
       renderOptions: { after: { contentText: ` // ${text}` } }
     });
   }
@@ -292,7 +294,69 @@ function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): stri
   return '匿名函数';
 }
 
-/** 扫描“被注释掉的单独方法”行，生成注释装饰（不画条） */
+/** 自动为函数添加中文注释 */
+// 为函数添加中文注释
+export function addFunctionComments(editor: vscode.TextEditor) {
+  const doc = editor.document;
+  const edit = new vscode.WorkspaceEdit();
+  
+  let addedComments = 0;
+  
+  // 逐行扫描查找函数
+  for (let i = 0; i < doc.lineCount; i++) {
+    const line = doc.lineAt(i).text.trim();
+    
+    // 跳过空行和注释行
+    if (!line || line.startsWith('//') || line.startsWith('*') || line.startsWith('/*')) {
+      continue;
+    }
+    
+    // 检查是否是函数定义并提取函数名
+    let functionName = '';
+    
+    // function 声明: function testFunction() {
+    let match = line.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
+    if (match) functionName = match[1];
+    
+    // 箭头函数: const arrowFunction = () => {
+    if (!functionName) {
+      match = line.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
+      if (match) functionName = match[1];
+    }
+    
+    // 对象方法或类方法: methodName() {
+    if (!functionName) {
+      match = line.match(/\b([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+      if (match) functionName = match[1];
+    }
+    
+    if (functionName) {
+      // 检查函数上方是否已有注释
+      const hasComment = i > 0 && (
+        doc.lineAt(i - 1).text.trim().startsWith('//') ||
+        doc.lineAt(i - 1).text.trim().startsWith('/*') ||
+        doc.lineAt(i - 1).text.trim().startsWith('*')
+      );
+      
+      if (!hasComment) {
+        const comment = `// ${functionName}`;
+        const insertPosition = new vscode.Position(i, 0);
+        edit.insert(doc.uri, insertPosition, comment + '\n');
+        addedComments++;
+      }
+    }
+  }
+  
+  // 应用编辑
+  if (edit.size > 0) {
+    vscode.workspace.applyEdit(edit);
+    vscode.window.showInformationMessage(`成功为 ${addedComments} 个函数添加了注释`);
+  } else {
+    vscode.window.showInformationMessage('没有找到需要添加注释的函数');
+  }
+}
+
+/** 扫描"被注释掉的单独方法"行，生成注释装饰（不画条） */
 // 查找被注释掉的函数注释
 function findCommentedOutFunctionNotes(doc: vscode.TextDocument): vscode.DecorationOptions[] {
   const notes: vscode.DecorationOptions[] = [];
@@ -313,4 +377,3 @@ function findCommentedOutFunctionNotes(doc: vscode.TextDocument): vscode.Decorat
   }
   return notes;
 }
-
