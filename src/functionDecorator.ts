@@ -48,14 +48,23 @@ const PALETTE = ['#FF0000', '#FF7F00', '#FFFF00', '#00C853','#FADB14', '#00E5FF'
 export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] {
   const ranges: vscode.Range[] = [];
   const maybeFuncStart = (line: string) => {
-    const s = line.trim();
-    if (s.startsWith('//') || s.startsWith('*') || s.startsWith('/*')) return false;
-    return (
-      /\bfunction\b/.test(s) ||                             // function foo(...) {
-      /[=:\)]\s*=>\s*\{/.test(s) ||                         // const a = (...) => {
-      /\b[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/.test(s)        // foo(...) {
-    );
-  };
+  const s = line.trim();
+  if (s.startsWith('//') || s.startsWith('*') || s.startsWith('/*')) return false;
+  
+  // 需要排除的关键字（控制流语句等）
+  const keywords = /\b(if|else|while|for|switch|catch|with)\s*\(/;
+  if (keywords.test(s)) return false;
+  
+  return (
+    /\bfunction\b/.test(s) ||                                    // function foo(...) {
+    /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/.test(s) || // const aa = () => {
+    /\b[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/.test(s) ||   // aa = () => {
+    /[=:\)]\s*=>\s*\{/.test(s) ||                                // 其他箭头函数（如回调）
+    // 方法定义：必须在特定上下文中（对象字面量、类、或有修饰符）
+    /^(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/.test(s) || // async method() { 或 method() {
+    /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/.test(s) // 对象方法: foo: function() { 或 { method() {
+  );
+};
 
   for (let i = 0; i < doc.lineCount; i++) {
     const text = doc.lineAt(i).text;
@@ -101,8 +110,6 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
     const endChar = doc.lineAt(endLine).range.end.character;
     const end = new vscode.Position(endLine, endChar);
     ranges.push(new vscode.Range(start, end));
-
-    i = endLine; // 跳过函数体
   }
 
   return dropNested(ranges);
@@ -116,11 +123,10 @@ function dropNested(ranges: vscode.Range[]): vscode.Range[] {
   );
   const out: vscode.Range[] = [];
   for (const r of sorted) {
-    const last = out[out.length - 1];
-    if (last &&
-        r.start.isAfterOrEqual(last.start) &&
-        r.end.isBeforeOrEqual(last.end)) {
-      continue; // 内层，丢弃
+    while (out.length &&
+           r.start.isAfterOrEqual(out[out.length - 1].start) &&
+           r.end.isBeforeOrEqual(out[out.length - 1].end)) {
+      out.pop(); // 去掉父级，保留内层
     }
     out.push(r);
   }
@@ -273,7 +279,6 @@ export function disposeFunctionDecorations() {
 /** 提取函数行的中文语义化注释 */
 // 提取函数标签
 function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): string {
-  // 取当前行 + 下一行，容错多行定义
   const l1 = doc.lineAt(startLine).text.trim();
   const l2 = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text.trim() : '';
   const s = `${l1} ${l2}`;
@@ -282,13 +287,24 @@ function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): stri
   let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
   if (m) return `方法：${m[1]}(…)`;
 
-  // 类/对象方法 foo(...) {
-  m = s.match(/\b([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-  if (m) return `方法：${m[1]}(…)`;
+  // const/let/var 声明的箭头函数
+  m = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
+  if (m) return `箭头函数：${m[1]}(…)`;
 
-  // 赋值的箭头函数 const foo = (...) => {
+  // 赋值的箭头函数（无 const/let/var）
   m = s.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
   if (m) return `箭头函数：${m[1]}(…)`;
+
+  // async 方法
+  m = s.match(/\basync\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+  if (m) return `异步方法：${m[1]}(…)`;
+
+  // 类/对象方法 foo(...) { （在行首或冒号/逗号后）
+  m = s.match(/^([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+  if (m) return `方法：${m[1]}(…)`;
+  
+  m = s.match(/[:,]\s*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+  if (m) return `方法：${m[1]}(…)`;
 
   // 匿名
   return '匿名函数';
@@ -302,7 +318,9 @@ export function addFunctionComments(editor: vscode.TextEditor) {
   
   let addedComments = 0;
   
-  // 逐行扫描查找函数
+  // 需要排除的关键字
+  const keywords = /\b(if|else|while|for|switch|catch|with)\s*\(/;
+  
   for (let i = 0; i < doc.lineCount; i++) {
     const line = doc.lineAt(i).text.trim();
     
@@ -311,22 +329,43 @@ export function addFunctionComments(editor: vscode.TextEditor) {
       continue;
     }
     
-    // 检查是否是函数定义并提取函数名
+    // 排除控制流语句
+    if (keywords.test(line)) {
+      continue;
+    }
+    
     let functionName = '';
     
-    // function 声明: function testFunction() {
+    // function 声明
     let match = line.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
     if (match) functionName = match[1];
     
-    // 箭头函数: const arrowFunction = () => {
+    // const/let/var 箭头函数
+    if (!functionName) {
+      match = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
+      if (match) functionName = match[1];
+    }
+    
+    // 赋值箭头函数
     if (!functionName) {
       match = line.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
       if (match) functionName = match[1];
     }
     
-    // 对象方法或类方法: methodName() {
+    // async 方法
     if (!functionName) {
-      match = line.match(/\b([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+      match = line.match(/\basync\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+      if (match) functionName = match[1];
+    }
+    
+    // 对象方法或类方法（在行首或有前置符号）
+    if (!functionName) {
+      match = line.match(/^([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+      if (match) functionName = match[1];
+    }
+    
+    if (!functionName) {
+      match = line.match(/[:,]\s*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
       if (match) functionName = match[1];
     }
     
@@ -347,7 +386,6 @@ export function addFunctionComments(editor: vscode.TextEditor) {
     }
   }
   
-  // 应用编辑
   if (edit.size > 0) {
     vscode.workspace.applyEdit(edit);
     vscode.window.showInformationMessage(`成功为 ${addedComments} 个函数添加了注释`);
