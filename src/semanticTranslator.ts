@@ -309,7 +309,6 @@ export function translateFunctionNameToChinese(functionName: string): string {
   if (!functionName || functionName === 'anonymous') {
     return '匿名函数';
   }
-  console.log('翻译函数名:', functionName);
   // 拆分为单词
   const words = camelCaseToWords(functionName);
   if (words.length === 0) return functionName;
@@ -363,6 +362,7 @@ export function translateFunctionNameToChinese(functionName: string): string {
 
 /**
  * 改进的 extractFunctionLabel - 返回中文语义
+ * 与 computeFunctionRanges 保持一致的检测逻辑
  */
 /** 提取函数名并翻译为中文 */
 export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): string {
@@ -372,41 +372,71 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
 
   let functionName = '';
 
-  // 命名 function
+  // 1. 命名 function: function foo(...) {
   let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
-  if (m) functionName = m[1];
+  if (m) {
+    functionName = m[1];
+  }
 
-  // const/let/var 声明的箭头函数
+  // 2. const/let/var 声明的箭头函数: const aa = () => {
   if (!functionName) {
     m = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-    if (m) functionName = m[1];
+    if (m) {
+      functionName = m[1];
+    }
   }
 
-  // 赋值的箭头函数
+  // 3. 赋值的箭头函数: aa = () => {
   if (!functionName) {
     m = s.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-    if (m) functionName = m[1];
+    if (m) {
+      functionName = m[1];
+    }
   }
 
-  // async 方法
+  // 4. 其他箭头函数（如回调）: [=:)] => {
   if (!functionName) {
-    m = s.match(/\basync\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-    if (m) functionName = m[1];
+    m = s.match(/[=:\)]\s*=>\s*\{/);
+    if (m) {
+      // 对于匿名箭头函数，尝试从上下文推断名称
+      // 这里可能需要更复杂的逻辑，暂时标记为匿名
+      functionName = 'anonymous';
+    }
   }
 
-  // 类/对象方法
+  // 5. async 方法: async method() { 或 method() {
   if (!functionName) {
-    m = s.match(/^([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-    if (m) functionName = m[1];
-  }
-  
-  if (!functionName) {
-    m = s.match(/[:,]\s*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-    if (m) functionName = m[1];
+    m = s.match(/^(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+    if (m) {
+      functionName = m[1];
+    }
   }
 
-  if (!functionName) return '匿名函数';
+  // 6. 对象方法: foo: function() { 或 { method() {
+  if (!functionName) {
+    m = s.match(/[:,]\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+    if (m) {
+      functionName = m[1];
+    }
+  }
+
+  // 7. 检查多行函数定义（函数名在上一行）
+  if (!functionName && startLine > 0) {
+    const prevLine = doc.lineAt(startLine - 1).text.trim();
+    const combined = `${prevLine} ${l1}`;
+    
+    // 检查上一行是否有函数名
+    m = combined.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
+    if (m) {
+      functionName = m[1];
+    }
+  }
+
+  if (!functionName) {
+    return '匿名函数';
+  }
 
   // 翻译为中文
-  return translateFunctionNameToChinese(functionName);
+  const chineseName = translateFunctionNameToChinese(functionName);
+  return chineseName;
 }

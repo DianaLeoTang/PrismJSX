@@ -18,6 +18,9 @@ const annotationType = vscode.window.createTextEditorDecorationType({
   },
 });
 
+/** 函数解析缓存：文档URI → 解析结果 */
+const functionCache = new Map<string, { ranges: vscode.Range[], version: number }>();
+
 // 获取左侧条纹装饰
 function getLeftStripeDecoration(color: string) {
   if (stripeTypeCache.has(color)) return stripeTypeCache.get(color)!;
@@ -45,25 +48,40 @@ const PALETTE = ['#FF0000', '#FF7F00', '#FFFF00', '#00C853','#FADB14', '#00E5FF'
  * - 仅保留“外层函数”，丢弃被完全包裹的内层（父级优先）
  * - 统一半开区间并收束到“结束行行末”
  */
-// 计算函数范围
+// 计算函数范围（带缓存）
 export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] {
+  const docUri = doc.uri.toString();
+  const docVersion = doc.version;
+  
+  // 检查缓存
+  const cached = functionCache.get(docUri);
+  if (cached && cached.version === docVersion) {
+    return cached.ranges;
+  }
+  
   const ranges: vscode.Range[] = [];
+  // 预编译正则表达式以提高性能
+  const commentPattern = /^\s*(\/\/|\*|\/\*)/;
+  const controlFlowPattern = /\b(if|else|while|for|switch|catch|with)\s*\(/;
+  const functionPattern = /\bfunction\b/;
+  const constArrowPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/;
+  const assignArrowPattern = /\b[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/;
+  const genericArrowPattern = /[=:\)]\s*=>\s*\{/;
+  const methodPattern = /^(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
+  const objectMethodPattern = /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
+
   const maybeFuncStart = (line: string) => {
   const s = line.trim();
-  if (s.startsWith('//') || s.startsWith('*') || s.startsWith('/*')) return false;
-  
-  // 需要排除的关键字（控制流语句等）
-  const keywords = /\b(if|else|while|for|switch|catch|with)\s*\(/;
-  if (keywords.test(s)) return false;
+  if (commentPattern.test(s)) return false;
+  if (controlFlowPattern.test(s)) return false;
   
   return (
-    /\bfunction\b/.test(s) ||                                    // function foo(...) {
-    /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/.test(s) || // const aa = () => {
-    /\b[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/.test(s) ||   // aa = () => {
-    /[=:\)]\s*=>\s*\{/.test(s) ||                                // 其他箭头函数（如回调）
-    // 方法定义：必须在特定上下文中（对象字面量、类、或有修饰符）
-    /^(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/.test(s) || // async method() { 或 method() {
-    /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/.test(s) // 对象方法: foo: function() { 或 { method() {
+    functionPattern.test(s) ||
+    constArrowPattern.test(s) ||
+    assignArrowPattern.test(s) ||
+    genericArrowPattern.test(s) ||
+    methodPattern.test(s) ||
+    objectMethodPattern.test(s)
   );
 };
 
@@ -113,7 +131,20 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
     ranges.push(new vscode.Range(start, end));
   }
 
-  return dropNested(ranges);
+  const result = dropNested(ranges);
+  
+  // 缓存结果
+  functionCache.set(docUri, { ranges: result, version: docVersion });
+  
+  // 限制缓存大小，避免内存泄漏
+  if (functionCache.size > 50) {
+    const firstKey = functionCache.keys().next().value;
+    if (firstKey) {
+      functionCache.delete(firstKey);
+    }
+  }
+  
+  return result;
 }
 
 /** 父级优先：去掉被完全包裹的内层函数 */
@@ -219,11 +250,16 @@ function keepCodeOnly(doc: vscode.TextDocument, ranges: vscode.Range[]): vscode.
 export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vscode.Range[]) {
   const doc = editor.document;
 
+  // 性能检查：跳过过大的文件
+  if (doc.lineCount > 10000) {
+    return;
+  }
+
   // 计算外层函数范围
   const all = computeFunctionRanges(doc);
-  // Region 优先：把 Region 覆盖的部分去掉（可能产生“夹在两个 region 之间”的残片）
+  // Region 优先：把 Region 覆盖的部分去掉（可能产生"夹在两个 region 之间"的残片）
   const visible = filterOutSuppressed(all, suppress);
-  // 关键：把这些残片进一步裁成“只包含实质代码”的行段；纯空行/注释段全部丢弃
+  // 关键：把这些残片进一步裁成"只包含实质代码"的行段；纯空行/注释段全部丢弃
   const codeOnly = keepCodeOnly(doc, visible);
 
   // 清空旧的（保证不会残留旧范围）
@@ -279,6 +315,7 @@ export function refreshFunctionDecorations() {
 export function disposeFunctionDecorations() {
   stripeTypeCache.forEach((dt) => dt.dispose());
   stripeTypeCache.clear();
+  functionCache.clear();
 }
 /** 提取函数行的中文语义化注释 */
 // 提取函数标签
