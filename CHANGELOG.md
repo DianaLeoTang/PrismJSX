@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## 3.0.0 (2025-01-27)
+- 优化调试体验，添加完整的 VSCode 调试配置
+- 改进项目结构和开发工作流
+- 增强代码可维护性和稳定性
+
 ## 2.0.0 (2025-09-28)
 - 仅左侧彩虹条，不再给文字底色
 - `#region ... #endregion` 段优先，内部函数不着色但保留语义化注释
