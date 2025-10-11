@@ -39,6 +39,64 @@ function getLeftStripeDecoration(color: string) {
 /** 简单色板：可替换为你的配色或按语义分配 */
 const PALETTE = ['#FF0000', '#FF7F00', '#FFFF00', '#00C853','#FADB14', '#00E5FF', '#c98bff','#2979FF', '#7C4DFF'];
 
+/** 函数类型到颜色的映射 */
+const FUNCTION_TYPE_COLORS: Record<string, string> = {
+  'region': '#85e0a3',           // region 标注统一颜色
+  'useeffect': '#FF6B6B',        // useEffect 统一颜色
+  'usestate': '#FADB14',         // useState 统一颜色
+  'usememo': '#45B7D1',          // useMemo 统一颜色
+  'usecallback': '#00E5FF',      // useCallback 统一颜色
+  'useref': '#FECA57',           // useRef 统一颜色
+  'usereducer': '#FF9FF3',       // useReducer 统一颜色
+  'uselayouteffect': '#A8E6CF',  // useLayoutEffect 统一颜色
+  'component': '#DDA0DD',        // React 组件统一颜色
+  'handler': '#FFB6C1',          // 事件处理函数统一颜色
+  'default': '#FF7F00'           // 默认颜色
+};
+
+/** 根据函数名和上下文识别函数类型 */
+function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
+  const line = doc.lineAt(startLine).text.trim();
+  const nextLine = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text.trim() : '';
+  const combined = `${line} ${nextLine}`.toLowerCase();
+
+  // 检查是否是JSX属性中的内联函数（如 onClick={() => {}}）
+  // 如果行中包含JSX属性模式，则跳过识别
+  if (combined.includes('onclick') || combined.includes('onchange') || 
+      combined.includes('onsubmit') || combined.includes('onfocus') ||
+      combined.includes('onblur') || combined.includes('onmouse') ||
+      combined.includes('onkey') || combined.includes('onload') ||
+      combined.includes('onerror') || combined.includes('onscroll') ||
+      combined.includes('onresize') || combined.includes('ontouch') ||
+      combined.includes('oninput') || combined.includes('onselect') ||
+      combined.includes('oncontextmenu') || combined.includes('ondrag') ||
+      combined.includes('ondrop') || combined.includes('onwheel') ||
+      combined.includes('onanimation') || combined.includes('ontransition')) {
+    return 'jsx-inline'; // 标记为JSX内联函数，后续会被过滤掉
+  }
+
+  // 检查 React Hooks
+  if (combined.includes('useeffect')) return 'useeffect';
+  if (combined.includes('usestate')) return 'usestate';
+  if (combined.includes('usememo')) return 'usememo';
+  if (combined.includes('usecallback')) return 'usecallback';
+  if (combined.includes('useref')) return 'useref';
+  if (combined.includes('usereducer')) return 'usereducer';
+  if (combined.includes('uselayouteffect')) return 'uselayouteffect';
+
+  // 检查 React 组件（大写字母开头的函数）
+  const functionNameMatch = combined.match(/\b(function\s+([A-Z][A-Za-z_$]*)|([A-Z][A-Za-z_$]*)\s*\([^)]*\)\s*\{)/);
+  if (functionNameMatch) return 'component';
+
+  // 检查事件处理函数（handle, on 开头）
+  if (combined.match(/\b(handle|on)[A-Za-z_$]/)) return 'handler';
+
+  // 检查 region 标注
+  if (combined.includes('#region')) return 'region';
+
+  return 'default';
+}
+
 
 
 /**
@@ -265,10 +323,18 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
   // 清空旧的（保证不会残留旧范围）
   stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
 
-  // 分配颜色并 set
+  // 分配颜色并 set - 按函数类型分配颜色
   const groups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
   codeOnly.forEach((r, i) => {
-    const color = PALETTE[i % PALETTE.length];
+    // 根据函数类型获取颜色
+    const functionType = getFunctionType(doc, r.start.line);
+    
+    // 跳过JSX内联函数，不为其分配颜色
+    if (functionType === 'jsx-inline') {
+      return;
+    }
+    
+    const color = FUNCTION_TYPE_COLORS[functionType] || FUNCTION_TYPE_COLORS['default'];
     const dt = getLeftStripeDecoration(color);
     if (!groups.has(dt)) groups.set(dt, []);
     groups.get(dt)!.push(r);
