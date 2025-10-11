@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## 3.0.1 (2025-01-27)
+- 修复装饰器性能问题，优化大文件渲染速度
+- 减少不必要的重绘，提升响应速度
+- 优化内存使用，降低资源占用
+
 ## 3.0.0 (2025-01-27)
 - 优化调试体验，添加完整的 VSCode 调试配置
 - 改进项目结构和开发工作流
