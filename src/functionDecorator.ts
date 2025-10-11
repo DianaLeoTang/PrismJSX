@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { onExclusionRanges } from './exclusionBus';
+import { extractFunctionLabel, translateFunctionNameToChinese } from './semanticTranslator';
 
 let suppressRanges: vscode.Range[] = [];
 onExclusionRanges((rs) => { suppressRanges = rs; });
@@ -245,12 +246,15 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
   const forNoteRanges = all; // 不用 visible，这样 Region 内也会有注释
   for (const r of forNoteRanges) {
     const line = r.start.line;
-    const text = extractFunctionLabel(doc, line);
+    const chineseLabel = extractFunctionLabel(doc, line);
+    // 添加这行调试
+    console.log(`Line ${line}: ${doc.lineAt(line).text.trim()} -> ${chineseLabel}`);
+    
     const targetLine = line > 0 ? line - 1 : line;
     const targetPos = doc.lineAt(targetLine).range.end;
     annotations.push({
       range: new vscode.Range(targetPos, targetPos),
-      renderOptions: { after: { contentText: ` // ${text}` } }
+      renderOptions: { after: { contentText: ` // ${chineseLabel}` } }
     });
   }
 
@@ -278,37 +282,37 @@ export function disposeFunctionDecorations() {
 }
 /** 提取函数行的中文语义化注释 */
 // 提取函数标签
-function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): string {
-  const l1 = doc.lineAt(startLine).text.trim();
-  const l2 = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text.trim() : '';
-  const s = `${l1} ${l2}`;
+// function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): string {
+//   const l1 = doc.lineAt(startLine).text.trim();
+//   const l2 = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text.trim() : '';
+//   const s = `${l1} ${l2}`;
 
-  // 命名 function
-  let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
-  if (m) return `方法：${m[1]}(…)`;
+//   // 命名 function
+//   let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
+//   if (m) return `方法：${m[1]}(…)`;
 
-  // const/let/var 声明的箭头函数
-  m = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-  if (m) return `箭头函数：${m[1]}(…)`;
+//   // const/let/var 声明的箭头函数
+//   m = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
+//   if (m) return `箭头函数：${m[1]}(…)`;
 
-  // 赋值的箭头函数（无 const/let/var）
-  m = s.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-  if (m) return `箭头函数：${m[1]}(…)`;
+//   // 赋值的箭头函数（无 const/let/var）
+//   m = s.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
+//   if (m) return `箭头函数：${m[1]}(…)`;
 
-  // async 方法
-  m = s.match(/\basync\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-  if (m) return `异步方法：${m[1]}(…)`;
+//   // async 方法
+//   m = s.match(/\basync\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+//   if (m) return `异步方法：${m[1]}(…)`;
 
-  // 类/对象方法 foo(...) { （在行首或冒号/逗号后）
-  m = s.match(/^([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-  if (m) return `方法：${m[1]}(…)`;
+//   // 类/对象方法 foo(...) { （在行首或冒号/逗号后）
+//   m = s.match(/^([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+//   if (m) return `方法：${m[1]}(…)`;
   
-  m = s.match(/[:,]\s*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-  if (m) return `方法：${m[1]}(…)`;
+//   m = s.match(/[:,]\s*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+//   if (m) return `方法：${m[1]}(…)`;
 
-  // 匿名
-  return '匿名函数';
-}
+//   // 匿名
+//   return '匿名函数';
+// }
 
 /** 自动为函数添加中文注释 */
 // 为函数添加中文注释
