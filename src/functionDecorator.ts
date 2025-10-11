@@ -127,6 +127,8 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   const genericArrowPattern = /[=:\)]\s*=>\s*\{/;
   const methodPattern = /^(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
   const objectMethodPattern = /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
+  // 添加对 React Hooks 调用的支持（如 useEffect(() => {})）
+  const hookCallPattern = /\b(useEffect|useState|useMemo|useCallback|useRef|useReducer|useLayoutEffect)\s*\(\s*\([^)]*\)\s*=>\s*\{/;
 
   const maybeFuncStart = (line: string) => {
   const s = line.trim();
@@ -139,7 +141,8 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
     assignArrowPattern.test(s) ||
     genericArrowPattern.test(s) ||
     methodPattern.test(s) ||
-    objectMethodPattern.test(s)
+    objectMethodPattern.test(s) ||
+    hookCallPattern.test(s)
   );
 };
 
