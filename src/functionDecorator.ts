@@ -75,6 +75,11 @@ function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
     return 'jsx-inline'; // 标记为JSX内联函数，后续会被过滤掉
   }
 
+  // 检查是否是数组方法中的回调函数（如 .map(() => {})）
+  if (combined.match(/\.(map|filter|forEach|reduce|find|some|every|sort|flatMap|reduceRight|findIndex|includes|indexOf|lastIndexOf|slice|splice|concat|join|push|pop|shift|unshift|reverse|fill|copyWithin|keys|values|entries|from|of)\s*\(\s*\([^)]*\)\s*=>\s*\{/)) {
+    return 'array-callback'; // 标记为数组回调函数，后续会被过滤掉
+  }
+
   // 检查 React Hooks
   if (combined.includes('useeffect')) return 'useeffect';
   if (combined.includes('usestate')) return 'usestate';
@@ -332,8 +337,8 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
     // 根据函数类型获取颜色
     const functionType = getFunctionType(doc, r.start.line);
     
-    // 跳过JSX内联函数，不为其分配颜色
-    if (functionType === 'jsx-inline') {
+    // 跳过JSX内联函数和数组回调函数，不为其分配颜色
+    if (functionType === 'jsx-inline' || functionType === 'array-callback') {
       return;
     }
     
