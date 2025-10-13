@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.3.0](https://github.com/DianaLeoTang/PrismJSX/compare/v3.1.1...v3.3.0) (2025-10-13)
+
+
+### ✨ 新功能
+
+* 调整自动化版本管理工具 ([eb75a91](https://github.com/DianaLeoTang/PrismJSX/commit/eb75a91a88119e93268db907e9e7e93207dbfd28))
+* 更新日志 ([ab222e5](https://github.com/DianaLeoTang/PrismJSX/commit/ab222e50737246478138893bb9fd823816fb96b3))
+* 同步vscode配置 ([e63f680](https://github.com/DianaLeoTang/PrismJSX/commit/e63f680adf8f0f6cb0ee7dd6fd0488abd8639950))
+* 增加对主题色适配的彩虹条颜色 ([a012821](https://github.com/DianaLeoTang/PrismJSX/commit/a0128210334603605e4402da698eaf66d9e12a97))
+* 增加更多的主题色配置，允许用户选择 ([59fa8c6](https://github.com/DianaLeoTang/PrismJSX/commit/59fa8c60699706d7604bef7d8440824b29f609cd))
+
+
+### 🔧 其他更改
+
+* **release:** 3.2.0 ([682d937](https://github.com/DianaLeoTang/PrismJSX/commit/682d9379a473ac9178fcff93a8a4fa774e2ac884))
+* **release:** 3.2.0 ([3f74fa4](https://github.com/DianaLeoTang/PrismJSX/commit/3f74fa41e0afe65d7b936cec54c4988ae93304c3))
+
 ## [3.2.0](https://github.com/DianaLeoTang/PrismJSX/compare/v3.1.1...v3.2.0) (2025-10-13)
 
 
