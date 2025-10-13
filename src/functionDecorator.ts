@@ -46,13 +46,88 @@ const FUNCTION_TYPE_COLORS: Record<string, string> = {
   'usestate': '#FADB14',         // useState 统一颜色
   'usememo': '#45B7D1',          // useMemo 统一颜色
   'usecallback': '#00E5FF',      // useCallback 统一颜色
-  'useref': '#FECA57',           // useRef 统一颜色
+  'useref': '#7C4DFF',           // useRef 统一颜色
   'usereducer': '#FF9FF3',       // useReducer 统一颜色
   'uselayouteffect': '#A8E6CF',  // useLayoutEffect 统一颜色
   'component': '#DDA0DD',        // React 组件统一颜色
   'handler': '#FFB6C1',          // 事件处理函数统一颜色
   'default': '#FF7F00'           // 默认颜色
 };
+
+/** React Hooks 关键字，全部按小写比较 */
+const HOOK_KEYWORDS = [
+  'useeffect',
+  'usestate',
+  'usememo',
+  'usecallback',
+  'useref',
+  'usereducer',
+  'uselayouteffect'
+] as const;
+
+type HookKeyword = typeof HOOK_KEYWORDS[number];
+
+function detectHookKeyword(text: string): HookKeyword | undefined {
+  const lower = text.toLowerCase();
+  for (const keyword of HOOK_KEYWORDS) {
+    if (lower.includes(keyword)) {
+      return keyword;
+    }
+  }
+  return undefined;
+}
+
+function isLikelyBareArrowStart(line: string): boolean {
+  const trimmed = line.trim();
+  // 典型场景： "() => {" 或 "async () => {" 或 "(...) => {"
+  return /^(?:async\s+)?\([^)]*\)\s*=>\s*\{/.test(trimmed);
+}
+
+function lookupHookAbove(doc: vscode.TextDocument, startLine: number): HookKeyword | undefined {
+  // 向上回溯几行，寻找 useEffect/useState 等调用
+  const maxLookback = 6;
+  let checkedLines = 0;
+  let inBlockComment = false;
+
+  for (let line = startLine - 1; line >= 0 && checkedLines < maxLookback; line--) {
+    const raw = doc.lineAt(line).text;
+    const trimmed = raw.trim();
+
+    if (!trimmed) {
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (trimmed.includes('/*')) {
+        inBlockComment = false;
+      }
+      continue;
+    }
+
+    if (trimmed.includes('*/')) {
+      inBlockComment = true;
+      continue;
+    }
+
+    if (trimmed.startsWith('//')) {
+      continue;
+    }
+
+    checkedLines++;
+
+    const keyword = detectHookKeyword(trimmed);
+    if (keyword) {
+      return keyword;
+    }
+
+    // 如果当前行看起来是另一个语句的起点（以 ; 或 { 结束），停止继续回溯
+    if (/[;{]$/.test(trimmed)) {
+      break;
+    }
+  }
+
+  return undefined;
+}
 
 /** 根据函数名和上下文识别函数类型 */
 function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
@@ -80,14 +155,17 @@ function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
     return 'array-callback'; // 标记为数组回调函数，后续会被过滤掉
   }
 
-  // 检查 React Hooks
-  if (combined.includes('useeffect')) return 'useeffect';
-  if (combined.includes('usestate')) return 'usestate';
-  if (combined.includes('usememo')) return 'usememo';
-  if (combined.includes('usecallback')) return 'usecallback';
-  if (combined.includes('useref')) return 'useref';
-  if (combined.includes('usereducer')) return 'usereducer';
-  if (combined.includes('uselayouteffect')) return 'uselayouteffect';
+  // 检查 React Hooks - 简单匹配
+  const inlineHook = detectHookKeyword(line);
+  if (inlineHook) return inlineHook;
+
+  // 兜底：箭头函数独占一行时，向上回溯几行寻找 hook 调用
+  if (isLikelyBareArrowStart(line)) {
+    const hookFromAbove = lookupHookAbove(doc, startLine);
+    if (hookFromAbove) {
+      return hookFromAbove;
+    }
+  }
 
   // 检查 React 组件（大写字母开头的函数）
   const functionNameMatch = combined.match(/\b(function\s+([A-Z][A-Za-z_$]*)|([A-Z][A-Za-z_$]*)\s*\([^)]*\)\s*\{)/);
@@ -133,7 +211,7 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   const methodPattern = /^(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
   const objectMethodPattern = /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
   // 添加对 React Hooks 调用的支持（如 useEffect(() => {})）
-  const hookCallPattern = /\b(useEffect|useState|useMemo|useCallback|useRef|useReducer|useLayoutEffect)\s*\(\s*\([^)]*\)\s*=>\s*\{/;
+  const hookCallPattern = /\b(?:React\.)?(useEffect|useState|useMemo|useCallback|useRef|useReducer|useLayoutEffect)\s*\(\s*\([^)]*\)\s*=>\s*\{/;
 
   const maybeFuncStart = (line: string) => {
   const s = line.trim();
