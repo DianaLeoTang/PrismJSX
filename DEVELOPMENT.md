@@ -283,7 +283,114 @@ vsce 会自动：
 - 编译和打包
 - 发布到 Marketplace
 
-### 3. 完整的版本迭代流程
+### 3. 使用 standard-version 自动生成 CHANGELOG（推荐）
+
+#### 什么是 standard-version？
+
+`standard-version` 是一个自动化版本管理工具，它可以：
+- 根据 Git 提交记录自动生成 CHANGELOG
+- 自动更新版本号
+- 创建 Git tag
+- 支持语义化版本控制
+
+#### Commit 规范（Conventional Commits）
+
+为了让 `standard-version` 正确工作，需要遵循约定式提交规范：
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**常用的 type 类型：**
+
+- `feat`: 新功能
+- `fix`: Bug 修复
+- `perf`: 性能优化
+- `refactor`: 代码重构
+- `docs`: 文档更新
+- `style`: 代码格式（不影响代码运行）
+- `test`: 测试相关
+- `build`: 构建系统或依赖更新
+- `ci`: CI 配置更改
+- `chore`: 其他更改
+
+**示例：**
+
+```bash
+# 新功能
+git commit -m "feat: 添加自定义颜色配置选项"
+git commit -m "feat(decorator): 支持自定义装饰器样式"
+
+# Bug 修复
+git commit -m "fix: 修复大文件渲染性能问题"
+git commit -m "fix(region): 修复 region 嵌套错误"
+
+# 性能优化
+git commit -m "perf: 优化装饰器渲染算法"
+
+# 重大变更（会触发 MAJOR 版本）
+git commit -m "feat!: 重构配置 API
+
+BREAKING CHANGE: 配置项名称已更改"
+```
+
+#### 使用 standard-version 发布
+
+```bash
+# 自动判断版本类型（根据提交记录）
+npm run release
+
+# 指定发布补丁版本（3.0.0 → 3.0.1）
+npm run release:patch
+
+# 指定发布次要版本（3.0.0 → 3.1.0）
+npm run release:minor
+
+# 指定发布主要版本（3.0.0 → 4.0.0）
+npm run release:major
+```
+
+`standard-version` 会自动：
+1. 分析 Git 提交记录
+2. 生成 CHANGELOG.md
+3. 更新 package.json 版本号
+4. 创建 Git commit 和 tag
+
+#### 完整的发布流程（使用 standard-version）
+
+```bash
+# 1. 开发并提交代码（使用规范的提交信息）
+git add .
+git commit -m "feat: 添加新的配置选项"
+git commit -m "fix: 修复性能问题"
+
+# 2. 运行 standard-version（自动生成 CHANGELOG 和更新版本）
+npm run release
+
+# 3. 推送代码和标签
+git push --follow-tags origin main
+
+# 4. 发布到 Marketplace
+vsce publish
+```
+
+#### 首次使用 standard-version
+
+如果是第一次使用，可以生成所有历史记录的 CHANGELOG：
+
+```bash
+# 生成首个版本的 CHANGELOG
+npm run release -- --first-release
+
+# 或者从特定版本开始
+npm run release -- --release-as 3.0.0
+```
+
+### 4. 传统的版本迭代流程（不使用 standard-version）
 
 ```bash
 # 1. 确保代码已提交
@@ -299,7 +406,7 @@ git push origin main
 git push origin --tags
 ```
 
-### 4. 版本回退
+### 5. 版本回退
 
 如果发布的版本有问题，可以下架：
 
@@ -395,6 +502,8 @@ npm run compile
 
 ## 有用的命令速查
 
+### 开发相关
+
 ```bash
 # 安装依赖
 npm install
@@ -402,19 +511,71 @@ npm install
 # 编译
 npm run compile
 
-# 监视模式
+# 监视模式（自动重新编译）
 npm run watch
 
+# 本地调试（在 VSCode 中按 F5）
+```
+
+### 版本管理（使用 standard-version）
+
+```bash
+# 自动生成 CHANGELOG 和更新版本
+npm run release              # 自动判断版本类型
+npm run release:patch        # 补丁版本 3.0.0 → 3.0.1
+npm run release:minor        # 次要版本 3.0.0 → 3.1.0
+npm run release:major        # 主要版本 3.0.0 → 4.0.0
+
+# 首次使用 standard-version
+npm run release -- --first-release
+
+# 指定版本号
+npm run release -- --release-as 3.0.0
+
+# 预览（不实际执行）
+npm run release -- --dry-run
+```
+
+### Git 提交规范
+
+```bash
+# 新功能
+git commit -m "feat: 添加新功能"
+git commit -m "feat(scope): 添加新功能"
+
+# Bug 修复
+git commit -m "fix: 修复 bug"
+
+# 性能优化
+git commit -m "perf: 优化性能"
+
+# 代码重构
+git commit -m "refactor: 重构代码"
+
+# 文档更新
+git commit -m "docs: 更新文档"
+
+# 重大变更
+git commit -m "feat!: 重大变更
+
+BREAKING CHANGE: 详细说明"
+```
+
+### 发布相关
+
+```bash
 # 登录发布者账号
 vsce login <publisher-id>
 
 # 打包
+npm run package
+# 或
 vsce package
 
 # 发布当前版本
 vsce publish
 
-# 发布并更新版本号
+# 发布并更新版本号（不使用 standard-version）
 vsce publish patch   # 3.0.0 → 3.0.1
 vsce publish minor   # 3.0.0 → 3.1.0
 vsce publish major   # 3.0.0 → 4.0.0
@@ -424,6 +585,27 @@ vsce ls-publishers
 
 # 本地安装测试
 code --install-extension ./codehue-3.0.1.vsix
+
+# 下架版本
+vsce unpublish <publisher>.<extension>@<version>
+```
+
+### 完整的发布工作流（推荐）
+
+```bash
+# 1. 开发并提交代码（使用规范的提交信息）
+git add .
+git commit -m "feat: 添加新功能"
+git commit -m "fix: 修复 bug"
+
+# 2. 自动生成 CHANGELOG 和更新版本
+npm run release
+
+# 3. 推送代码和标签
+git push --follow-tags origin main
+
+# 4. 发布到 Marketplace
+vsce publish
 ```
 
 ---
