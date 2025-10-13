@@ -3,14 +3,14 @@
   "displayName": "CodeHue",
   "description": "Structure coloring + inline translated comments (no rules mapping) for TS/JS/TSX/JSX.",
   "publisher": "codehue",
-  "version": "3.0.1",
+  "version": "3.2.0",
   "engines": {
     "vscode": "^1.85.0"
   },
   "repository": {
-  "type": "git",
-  "url": "https://github.com/DianaLeoTang/PrismJSX"
-},
+    "type": "git",
+    "url": "https://github.com/DianaLeoTang/PrismJSX"
+  },
   "categories": [
     "Other"
   ],
@@ -43,6 +43,37 @@
           "type": "string",
           "default": "1px solid rgba(76,175,80,0.45)",
           "description": "CSS-like border for region blocks"
+        },
+        "codehue.stripeWidth": {
+          "type": "string",
+          "default": "3px",
+          "description": "Width of the left color stripe for functions",
+          "enum": [
+            "2px",
+            "3px",
+            "4px",
+            "5px"
+          ]
+        },
+        "codehue.enableSemanticComments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline semantic Chinese comments for functions"
+        },
+        "codehue.colorScheme": {
+          "type": "string",
+          "default": "vibrant",
+          "description": "Color scheme for function decorations (automatically adapts to light/dark theme)",
+          "enum": [
+            "vibrant",
+            "pastel",
+            "dark"
+          ],
+          "enumDescriptions": [
+            "Vibrant and colorful (default, auto-adapts to theme)",
+            "Soft pastel colors (auto-adapts to theme)",
+            "Balanced colors (auto-adapts to theme)"
+          ]
         }
       }
     }
@@ -51,7 +82,11 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package"
+    "package": "vsce package",
+    "release": "standard-version",
+    "release:patch": "standard-version --release-as patch",
+    "release:minor": "standard-version --release-as minor",
+    "release:major": "standard-version --release-as major"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",

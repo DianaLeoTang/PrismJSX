@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.2.0](https://github.com/DianaLeoTang/PrismJSX/compare/v2.0.0...v3.2.0) (2025-10-13)
+
+
+### ♻️ 代码重构
+
+* 删除注释代码 ([d8612b7](https://github.com/DianaLeoTang/PrismJSX/commit/d8612b79f1da37d9134cb33017760a9c490282b5))
+
+
+### 🐛 Bug 修复
+
+* 解决彩虹色标注没有包括函数尾部花括号的问题 ([c053ad2](https://github.com/DianaLeoTang/PrismJSX/commit/c053ad215b528e62d5be7ab6bff8bc728a659e18))
+* 解决控制台警告WARNING  A 'repository' field is missing from the 'package.json' manifest file. ([13b5902](https://github.com/DianaLeoTang/PrismJSX/commit/13b590239f37750829b8a4b8bcdea8d6d97e27ac))
+* 修复性能问题 ([ae339ca](https://github.com/DianaLeoTang/PrismJSX/commit/ae339ca8ed19eca9c56f07f6e3c8d8a93a22d1d2))
+
+
+### ✨ 新功能
+
+*  细粒度修改对react语法的适配，不同的hooks使用不同的颜色，同一用一种颜色 ([e366d4d](https://github.com/DianaLeoTang/PrismJSX/commit/e366d4d65fc7cdbe4ca45d732876e950b9f67cb0))
+* 查一下插件机制如何同步到cursor ([edec7cc](https://github.com/DianaLeoTang/PrismJSX/commit/edec7ccd9adcdeec046d925271f5d2cc0d23e747))
+* 调整对代码段的处理，解决性能问题 ([b7c5472](https://github.com/DianaLeoTang/PrismJSX/commit/b7c5472f33b7a8b14679a446da0465d47bd311ed))
+* 调整对hooks的支持 ([e146623](https://github.com/DianaLeoTang/PrismJSX/commit/e146623311e4d7229707071b873c478761ce7fd1))
+* 调整对react hooks的识别 ([ae6db01](https://github.com/DianaLeoTang/PrismJSX/commit/ae6db0151130e312f58087db7771a0852457dc2c))
+* 调整用户说明文件Readme ([215a38e](https://github.com/DianaLeoTang/PrismJSX/commit/215a38eff4c941b42960a55b87c950eb9b0eba0c))
+* 给函数方法增加注释 ([32637bf](https://github.com/DianaLeoTang/PrismJSX/commit/32637bf51e3d43b012e534ce4c5e365109dc22ac))
+* 更加细致地对hooks的检测和识别，解决链式调用对识别useEffect的干扰 ([a4c06dc](https://github.com/DianaLeoTang/PrismJSX/commit/a4c06dc484efaa2991019322138205400fec5ce8))
+* 更新版本号，发布新版 ([49f4cc0](https://github.com/DianaLeoTang/PrismJSX/commit/49f4cc0ba8e4456680b42b165ac95468d70fd6ad))
+* 更新readme文件，同步项目功能到readme中 ([2810dd6](https://github.com/DianaLeoTang/PrismJSX/commit/2810dd6d7bba32ebc91879f9776da04adb190d91))
+* 忽略数组的方法内部的函数，避免着色 ([28fdc27](https://github.com/DianaLeoTang/PrismJSX/commit/28fdc27d33068047f330a539f238ff6acaf64ecc))
+* 进一步调整对函数的识别 ([2dadfeb](https://github.com/DianaLeoTang/PrismJSX/commit/2dadfeb48c6d3010dec7d2c3e403588000a20536))
+* 修改函数注释到函数上一行 ([5b33032](https://github.com/DianaLeoTang/PrismJSX/commit/5b330321223701888fada9c9ac6ef5d1c7717c2d))
+* 增加函数识别翻译成中文，但是没生效，需要进一步排查 ([86d728e](https://github.com/DianaLeoTang/PrismJSX/commit/86d728e19cea1f7d6c72b343c96e7bb9a4d94f4f))
+* 增加VScode插件开发说明文档 ([1311852](https://github.com/DianaLeoTang/PrismJSX/commit/1311852ebf6d6ac155ca6b2975abbc5f628a2005))
+* todo新增功能 ([76c25bc](https://github.com/DianaLeoTang/PrismJSX/commit/76c25bcd2a993782ad6ee4521bbe8cb1043ebf77))
+* v2.0.0 changelog ([3b52398](https://github.com/DianaLeoTang/PrismJSX/commit/3b52398af3025df248c5e11ccde7061583b0fca6))
+
 ## 3.0.1 (2025-01-27)
 - 修复装饰器性能问题，优化大文件渲染速度
 - 减少不必要的重绘，提升响应速度
