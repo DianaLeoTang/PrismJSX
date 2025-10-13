@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { onExclusionRanges } from './exclusionBus';
 import { extractFunctionLabel, translateFunctionNameToChinese } from './semanticTranslator';
+import { COLOR_SCHEMES_LIGHT, COLOR_SCHEMES_DARK } from './colorSchemes';
 
 let suppressRanges: vscode.Range[] = [];
 onExclusionRanges((rs) => { suppressRanges = rs; });
@@ -22,41 +23,37 @@ const functionCache = new Map<string, { ranges: vscode.Range[], version: number 
 
 // 获取左侧条纹装饰
 function getLeftStripeDecoration(color: string) {
-  if (stripeTypeCache.has(color)) return stripeTypeCache.get(color)!;
+  const config = vscode.workspace.getConfiguration('codehue');
+  const stripeWidth = config.get<string>('stripeWidth', '3px');
+  const cacheKey = `${color}-${stripeWidth}`;
+  
+  if (stripeTypeCache.has(cacheKey)) return stripeTypeCache.get(cacheKey)!;
   const dt = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     borderStyle: 'solid',
     borderColor: color,
-    borderWidth: '0 0 0 3px',
+    borderWidth: `0 0 0 ${stripeWidth}`,
     overviewRulerColor: color,
     overviewRulerLane: vscode.OverviewRulerLane.Left,
   });
-  stripeTypeCache.set(color, dt);
+  stripeTypeCache.set(cacheKey, dt);
   return dt;
 }
 
-/** 函数类型到颜色的映射 */
-const FUNCTION_TYPE_COLORS: Record<string, string> = {
-  'region': '#85e0a3',
-  'useeffect': '#FF6B6B',
-  'usestate': '#FADB14',
-  'usememo': '#45B7D1',
-  'usecallback': '#00E5FF',
-  'useref': '#7C4DFF',
-  'usereducer': '#FF9FF3',
-  'uselayouteffect': '#A8E6CF',
-  'usecontext': '#FFB347',
-  'useimperativehandle': '#98D8C8',
-  'usedebugvalue': '#F7CAC9',
-  'usedeferredvalue': '#92A8D1',
-  'usetransition': '#C5A3FF',
-  'useid': '#B4E7CE',
-  'usesyncexternalstore': '#FFD5A3',
-  'useinsertioneffect': '#E3C5E7',
-  'component': '#DDA0DD',
-  'handler': '#FFB6C1',
-  'default': '#FF7F00'
-};
+
+/** 检测当前主题是否为暗色 */
+function isDarkTheme(): boolean {
+  const themeKind = vscode.window.activeColorTheme.kind;
+  return themeKind === vscode.ColorThemeKind.Dark || themeKind === vscode.ColorThemeKind.HighContrast;
+}
+
+/** 获取当前配置的颜色方案（根据主题自动适配） */
+function getColorScheme(): Record<string, string> {
+  const config = vscode.workspace.getConfiguration('codehue');
+  const schemeName = config.get<string>('colorScheme', 'vibrant');
+  const schemes = isDarkTheme() ? COLOR_SCHEMES_DARK : COLOR_SCHEMES_LIGHT;
+  return schemes[schemeName] || schemes.vibrant;
+}
 
 /** React Hooks 关键字列表 - 包含所有官方 Hooks */
 const HOOK_KEYWORDS = [
@@ -482,6 +479,8 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
 
   // 分配颜色并设置装饰
   const groups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
+  const colorScheme = getColorScheme();
+  
   codeOnly.forEach((r) => {
     const functionType = getFunctionType(doc, r.start.line);
     
@@ -490,7 +489,7 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
       return;
     }
     
-    const color = FUNCTION_TYPE_COLORS[functionType] || FUNCTION_TYPE_COLORS['default'];
+    const color = colorScheme[functionType] || colorScheme['default'];
     const dt = getLeftStripeDecoration(color);
     if (!groups.has(dt)) groups.set(dt, []);
     groups.get(dt)!.push(r);
@@ -498,26 +497,31 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
 
   groups.forEach((ranges, dt) => editor.setDecorations(dt, ranges));
 
-  // 中文语义化注释
+  // 中文语义化注释（受配置控制）
+  const config = vscode.workspace.getConfiguration('codehue');
+  const enableSemanticComments = config.get<boolean>('enableSemanticComments', true);
+  
   const annotations: vscode.DecorationOptions[] = [];
 
-  for (const r of all) {
-    const line = r.start.line;
-    const chineseLabel = extractFunctionLabel(doc, line);
-    
-    const targetLine = line > 0 ? line - 1 : line;
-    const targetPos = doc.lineAt(targetLine).range.end;
-    annotations.push({
-      range: new vscode.Range(targetPos, targetPos),
-      renderOptions: { after: { contentText: ` // ${chineseLabel}` } }
-    });
-  }
+  if (enableSemanticComments) {
+    for (const r of all) {
+      const line = r.start.line;
+      const chineseLabel = extractFunctionLabel(doc, line);
+      
+      const targetLine = line > 0 ? line - 1 : line;
+      const targetPos = doc.lineAt(targetLine).range.end;
+      annotations.push({
+        range: new vscode.Range(targetPos, targetPos),
+        renderOptions: { after: { contentText: ` // ${chineseLabel}` } }
+      });
+    }
 
-  // 整段被注释掉的函数
-  const commented = findCommentedOutFunctionNotes(doc);
-  const usedLines = new Set(annotations.map(a => a.range.start.line));
-  for (const c of commented) {
-    if (!usedLines.has(c.range.start.line)) annotations.push(c);
+    // 整段被注释掉的函数
+    const commented = findCommentedOutFunctionNotes(doc);
+    const usedLines = new Set(annotations.map(a => a.range.start.line));
+    for (const c of commented) {
+      if (!usedLines.has(c.range.start.line)) annotations.push(c);
+    }
   }
 
   editor.setDecorations(annotationType, annotations);

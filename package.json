@@ -66,13 +66,19 @@
           "description": "Color scheme for function decorations (automatically adapts to light/dark theme)",
           "enum": [
             "vibrant",
-            "pastel",
-            "dark"
+            "soft",
+            "ocean",
+            "sunset",
+            "forest",
+            "neon"
           ],
           "enumDescriptions": [
-            "Vibrant and colorful (default, auto-adapts to theme)",
-            "Soft pastel colors (auto-adapts to theme)",
-            "Balanced colors (auto-adapts to theme)"
+            "鲜艳多彩 - 高对比度，区分度极高（默认）",
+            "柔和淡雅 - 马卡龙色系，护眼舒适",
+            "海洋风格 - 蓝绿色系，清新自然",
+            "日落风格 - 暖色调，温暖活力",
+            "森林风格 - 绿色系，沉稳专注",
+            "霓虹风格 - 荧光色，炫酷科技感"
           ]
         }
       }
