@@ -4,11 +4,6 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [3.1.1](https://github.com/DianaLeoTang/PrismJSX/compare/v3.2.1...v3.1.1) (2025-10-13)
 
-### [3.2.1](https://github.com/DianaLeoTang/PrismJSX/compare/v3.2.0...v3.2.1) (2025-10-13)
-
-## [3.2.0](https://github.com/DianaLeoTang/PrismJSX/compare/v2.0.0...v3.2.0) (2025-10-13)
-
-
 ### ♻️ 代码重构
 
 * 删除注释代码 ([d8612b7](https://github.com/DianaLeoTang/PrismJSX/commit/d8612b79f1da37d9134cb33017760a9c490282b5))
