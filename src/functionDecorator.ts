@@ -14,7 +14,6 @@ const annotationType = vscode.window.createTextEditorDecorationType({
   after: {
     margin: '0 0 0 8px',
     color: new vscode.ThemeColor('editorCodeLens.foreground'), // 跟随主题
-    // contentText 走每条 DecorationOptions 的 renderOptions 传入
   },
 });
 
@@ -36,92 +35,170 @@ function getLeftStripeDecoration(color: string) {
   return dt;
 }
 
-/** 简单色板：可替换为你的配色或按语义分配 */
-const PALETTE = ['#FF0000', '#FF7F00', '#FFFF00', '#00C853','#FADB14', '#00E5FF', '#c98bff','#2979FF', '#7C4DFF'];
-
 /** 函数类型到颜色的映射 */
 const FUNCTION_TYPE_COLORS: Record<string, string> = {
-  'region': '#85e0a3',           // region 标注统一颜色
-  'useeffect': '#FF6B6B',        // useEffect 统一颜色
-  'usestate': '#FADB14',         // useState 统一颜色
-  'usememo': '#45B7D1',          // useMemo 统一颜色
-  'usecallback': '#00E5FF',      // useCallback 统一颜色
-  'useref': '#7C4DFF',           // useRef 统一颜色
-  'usereducer': '#FF9FF3',       // useReducer 统一颜色
-  'uselayouteffect': '#A8E6CF',  // useLayoutEffect 统一颜色
-  'component': '#DDA0DD',        // React 组件统一颜色
-  'handler': '#FFB6C1',          // 事件处理函数统一颜色
-  'default': '#FF7F00'           // 默认颜色
+  'region': '#85e0a3',
+  'useeffect': '#FF6B6B',
+  'usestate': '#FADB14',
+  'usememo': '#45B7D1',
+  'usecallback': '#00E5FF',
+  'useref': '#7C4DFF',
+  'usereducer': '#FF9FF3',
+  'uselayouteffect': '#A8E6CF',
+  'usecontext': '#FFB347',
+  'useimperativehandle': '#98D8C8',
+  'usedebugvalue': '#F7CAC9',
+  'usedeferredvalue': '#92A8D1',
+  'usetransition': '#C5A3FF',
+  'useid': '#B4E7CE',
+  'usesyncexternalstore': '#FFD5A3',
+  'useinsertioneffect': '#E3C5E7',
+  'component': '#DDA0DD',
+  'handler': '#FFB6C1',
+  'default': '#FF7F00'
 };
 
-/** React Hooks 关键字，全部按小写比较 */
+/** React Hooks 关键字列表 - 包含所有官方 Hooks */
 const HOOK_KEYWORDS = [
-  'useeffect',
-  'usestate',
-  'usememo',
-  'usecallback',
-  'useref',
-  'usereducer',
-  'uselayouteffect'
+  'useEffect',
+  'useState',
+  'useMemo',
+  'useCallback',
+  'useRef',
+  'useReducer',
+  'useLayoutEffect',
+  'useContext',
+  'useImperativeHandle',
+  'useDebugValue',
+  'useDeferredValue',
+  'useTransition',
+  'useId',
+  'useSyncExternalStore',
+  'useInsertionEffect'
 ] as const;
 
 type HookKeyword = typeof HOOK_KEYWORDS[number];
 
-function detectHookKeyword(text: string): HookKeyword | undefined {
-  const lower = text.toLowerCase();
-  for (const keyword of HOOK_KEYWORDS) {
-    if (lower.includes(keyword)) {
-      return keyword;
+/**
+ * 检测一行或多行文本中是否包含 Hook 调用
+ * 支持各种模式:
+ * - useEffect(() => {})
+ * - React.useEffect(() => {})
+ * - useEffect(function() {})
+ * - useEffect(async () => {})
+ */
+function detectHookInText(text: string): HookKeyword | undefined {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  
+  for (const hook of HOOK_KEYWORDS) {
+    // 匹配 hook 名称后跟开括号，支持可选的 React. 前缀
+    const pattern = new RegExp(`(?:React\\.)?${hook}\\s*\\(`, 'i');
+    if (pattern.test(normalized)) {
+      return hook.toLowerCase() as HookKeyword;
     }
   }
+  
   return undefined;
 }
 
+/**
+ * 判断是否是裸箭头函数的开始
+ */
 function isLikelyBareArrowStart(line: string): boolean {
   const trimmed = line.trim();
-  // 典型场景： "() => {" 或 "async () => {" 或 "(...) => {"
-  return /^(?:async\s+)?\([^)]*\)\s*=>\s*\{/.test(trimmed);
+  return /^(?:async\s+)?(?:\/\*.*?\*\/)?\s*\([^)]*\)\s*=>\s*\{/.test(trimmed);
 }
 
+/**
+ * 检查某行是否是数组方法链式调用的一部分
+ * 这些不应该被识别为独立函数
+ */
+function isArrayMethodChain(doc: vscode.TextDocument, lineIndex: number): boolean {
+  // 向上查找几行，看是否有数组方法调用
+  const maxLookback = 5;
+  let currentLine = lineIndex;
+  
+  for (let i = 0; i < maxLookback && currentLine >= 0; currentLine--, i++) {
+    const text = doc.lineAt(currentLine).text.trim();
+    
+    // 如果找到数组方法（.map, .filter 等），说明是链式调用
+    if (/\.(map|filter|forEach|reduce|find|some|every|sort|flatMap|reduceRight|findIndex)\s*\(/.test(text)) {
+      return true;
+    }
+    
+    // 如果遇到语句结束或新的赋值，停止查找
+    if (/^(const|let|var|return|if|while|for)\s/.test(text) || /;\s*$/.test(text)) {
+      // 但要检查这一行本身是否包含数组方法
+      if (/\.(map|filter|forEach|reduce|find|some|every|sort|flatMap|reduceRight|findIndex)\s*\(/.test(text)) {
+        return true;
+      }
+      break;
+    }
+    
+    // 如果这行以点开头，继续向上查找（链式调用）
+    if (!text.startsWith('.')) {
+      // 检查这一行是否有数组方法
+      if (/\.(map|filter|forEach|reduce|find|some|every|sort|flatMap|reduceRight|findIndex)\s*\(/.test(text)) {
+        return true;
+      }
+      break;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * 向上回溯查找 Hook 上下文
+ * 当遇到裸箭头函数时使用
+ * 增强版：排除数组方法链式调用
+ */
 function lookupHookAbove(doc: vscode.TextDocument, startLine: number): HookKeyword | undefined {
-  // 向上回溯几行，寻找 useEffect/useState 等调用
-  const maxLookback = 6;
+  const maxLookback = 8;
   let checkedLines = 0;
+  let accumulatedText = '';
   let inBlockComment = false;
 
   for (let line = startLine - 1; line >= 0 && checkedLines < maxLookback; line--) {
     const raw = doc.lineAt(line).text;
     const trimmed = raw.trim();
 
-    if (!trimmed) {
-      continue;
-    }
+    if (!trimmed) continue;
 
+    // 处理块注释
     if (inBlockComment) {
-      if (trimmed.includes('/*')) {
-        inBlockComment = false;
-      }
+      if (trimmed.includes('/*')) inBlockComment = false;
       continue;
     }
-
     if (trimmed.includes('*/')) {
       inBlockComment = true;
       continue;
     }
 
-    if (trimmed.startsWith('//')) {
-      continue;
-    }
+    // 跳过单行注释
+    if (trimmed.startsWith('//')) continue;
 
     checkedLines++;
-
-    const keyword = detectHookKeyword(trimmed);
-    if (keyword) {
-      return keyword;
+    
+    // 检查是否遇到数组方法 - 如果是，立即停止并返回 undefined
+    if (/\.(map|filter|forEach|reduce|find|some|every|sort|flatMap|reduceRight|findIndex)\s*\(/.test(trimmed)) {
+      return undefined;
     }
+    
+    // 累积文本
+    accumulatedText = trimmed + ' ' + accumulatedText;
 
-    // 如果当前行看起来是另一个语句的起点（以 ; 或 { 结束），停止继续回溯
-    if (/[;{]$/.test(trimmed)) {
+    // 检测累积的文本中是否包含 Hook
+    const hook = detectHookInText(accumulatedText);
+    if (hook) return hook;
+
+    // 如果遇到明显的语句开始（const/let/var/return 等），停止回溯
+    if (/^(const|let|var|return|if|while|for|function)\s/.test(trimmed)) {
+      break;
+    }
+    
+    // 如果遇到分号或大括号结束，停止回溯
+    if (/[;{}]\s*$/.test(trimmed)) {
       break;
     }
   }
@@ -129,67 +206,61 @@ function lookupHookAbove(doc: vscode.TextDocument, startLine: number): HookKeywo
   return undefined;
 }
 
-/** 根据函数名和上下文识别函数类型 */
+/**
+ * 根据函数名和上下文识别函数类型
+ */
 function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
-  const line = doc.lineAt(startLine).text.trim();
-  const nextLine = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text.trim() : '';
-  const combined = `${line} ${nextLine}`.toLowerCase();
+  const currentLine = doc.lineAt(startLine).text;
+  const trimmed = currentLine.trim();
+  const nextLine = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text : '';
+  const combined = `${currentLine} ${nextLine}`;
 
-  // 检查是否是JSX属性中的内联函数（如 onClick={() => {}}）
-  // 如果行中包含JSX属性模式，则跳过识别
-  if (combined.includes('onclick') || combined.includes('onchange') || 
-      combined.includes('onsubmit') || combined.includes('onfocus') ||
-      combined.includes('onblur') || combined.includes('onmouse') ||
-      combined.includes('onkey') || combined.includes('onload') ||
-      combined.includes('onerror') || combined.includes('onscroll') ||
-      combined.includes('onresize') || combined.includes('ontouch') ||
-      combined.includes('oninput') || combined.includes('onselect') ||
-      combined.includes('oncontextmenu') || combined.includes('ondrag') ||
-      combined.includes('ondrop') || combined.includes('onwheel') ||
-      combined.includes('onanimation') || combined.includes('ontransition')) {
-    return 'jsx-inline'; // 标记为JSX内联函数，后续会被过滤掉
+  // 0. 优先检查：如果是数组方法链式调用的一部分，直接返回 'array-callback'
+  if (isArrayMethodChain(doc, startLine)) {
+    return 'array-callback';
   }
 
-  // 检查是否是数组方法中的回调函数（如 .map(() => {})）
-  if (combined.match(/\.(map|filter|forEach|reduce|find|some|every|sort|flatMap|reduceRight|findIndex|includes|indexOf|lastIndexOf|slice|splice|concat|join|push|pop|shift|unshift|reverse|fill|copyWithin|keys|values|entries|from|of)\s*\(\s*\([^)]*\)\s*=>\s*\{/)) {
-    return 'array-callback'; // 标记为数组回调函数，后续会被过滤掉
+  // 1. 检查 JSX 内联函数（需要过滤掉）
+  const jsxEventPattern = /\b(onClick|onChange|onSubmit|onFocus|onBlur|onMouse|onKey|onLoad|onError|onScroll|onResize|onTouch|onInput|onSelect|onContextMenu|onDrag|onDrop|onWheel|onAnimation|onTransition)\s*=\s*\{/i;
+  if (jsxEventPattern.test(combined)) {
+    return 'jsx-inline';
   }
 
-  // 检查 React Hooks - 简单匹配
-  const inlineHook = detectHookKeyword(line);
-  if (inlineHook) return inlineHook;
+  // 2. 检查当前行本身是否包含数组方法回调（单行形式）
+  if (/\.(map|filter|forEach|reduce|find|some|every|sort|flatMap|reduceRight|findIndex)\s*\(\s*\([^)]*\)\s*=>\s*\{/.test(combined)) {
+    return 'array-callback';
+  }
 
-  // 兜底：箭头函数独占一行时，向上回溯几行寻找 hook 调用
-  if (isLikelyBareArrowStart(line)) {
+  // 3. 检查当前行是否直接包含 Hook 调用
+  const directHook = detectHookInText(currentLine);
+  if (directHook) return directHook;
+
+  // 4. 检查跨行的 Hook 调用
+  const combinedHook = detectHookInText(combined);
+  if (combinedHook) return combinedHook;
+
+  // 5. 如果是裸箭头函数，向上回溯查找 Hook 上下文（已增强，会排除数组方法）
+  if (isLikelyBareArrowStart(trimmed)) {
     const hookFromAbove = lookupHookAbove(doc, startLine);
-    if (hookFromAbove) {
-      return hookFromAbove;
-    }
+    if (hookFromAbove) return hookFromAbove;
   }
 
-  // 检查 React 组件（大写字母开头的函数）
-  const functionNameMatch = combined.match(/\b(function\s+([A-Z][A-Za-z_$]*)|([A-Z][A-Za-z_$]*)\s*\([^)]*\)\s*\{)/);
-  if (functionNameMatch) return 'component';
+  // 6. 检查 React 组件（大写字母开头的函数）
+  const componentPattern = /\b(?:function\s+([A-Z][A-Za-z_$]*)|(?:const|let|var)\s+([A-Z][A-Za-z_$]*)\s*=)/;
+  if (componentPattern.test(combined)) return 'component';
 
-  // 检查事件处理函数（handle, on 开头）
-  if (combined.match(/\b(handle|on)[A-Za-z_$]/)) return 'handler';
+  // 7. 检查事件处理函数（handle, on 开头）
+  if (/\b(handle|on)[A-Z][a-zA-Z_$]/.test(combined)) return 'handler';
 
-  // 检查 region 标注
+  // 8. 检查 region 标注
   if (combined.includes('#region')) return 'region';
 
   return 'default';
 }
 
-
-
 /**
- * —— 函数范围提取（按花括号外层范围）——
- * - 识别外层函数开始：function 关键字 或 典型的箭头/方法模式后跟 `{`
- * - 通过 { } 计数找到对应的结束行
- * - 仅保留“外层函数”，丢弃被完全包裹的内层（父级优先）
- * - 统一半开区间并收束到“结束行行末”
+ * 计算函数范围（带缓存）
  */
-// 计算函数范围（带缓存）
 export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] {
   const docUri = doc.uri.toString();
   const docVersion = doc.version;
@@ -201,48 +272,62 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   }
   
   const ranges: vscode.Range[] = [];
-  // 预编译正则表达式以提高性能
+  
+  // 预编译正则表达式
   const commentPattern = /^\s*(\/\/|\*|\/\*)/;
-  const controlFlowPattern = /\b(if|else|while|for|switch|catch|with)\s*\(/;
+  const controlFlowPattern = /\b(if|else|while|for|switch|catch|with|try)\s*\(/;
   const functionPattern = /\bfunction\b/;
   const constArrowPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/;
   const assignArrowPattern = /\b[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/;
   const genericArrowPattern = /[=:\)]\s*=>\s*\{/;
   const methodPattern = /^(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
   const objectMethodPattern = /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
-  // 添加对 React Hooks 调用的支持（如 useEffect(() => {})）
-  const hookCallPattern = /\b(?:React\.)?(useEffect|useState|useMemo|useCallback|useRef|useReducer|useLayoutEffect)\s*\(\s*\([^)]*\)\s*=>\s*\{/;
+  // Hook 调用模式：匹配任何 useXxx( 格式
+  const hookCallPattern = /\b(?:React\.)?use[A-Z]\w*\s*\(/;
 
-  const maybeFuncStart = (line: string) => {
-  const s = line.trim();
-  if (commentPattern.test(s)) return false;
-  if (controlFlowPattern.test(s)) return false;
-  
-  return (
-    functionPattern.test(s) ||
-    constArrowPattern.test(s) ||
-    assignArrowPattern.test(s) ||
-    genericArrowPattern.test(s) ||
-    methodPattern.test(s) ||
-    objectMethodPattern.test(s) ||
-    hookCallPattern.test(s)
-  );
-};
+  const maybeFuncStart = (line: string, lineIndex: number) => {
+    const s = line.trim();
+    if (commentPattern.test(s)) return false;
+    if (controlFlowPattern.test(s)) return false;
+    
+    // 如果匹配到 genericArrowPattern，需要额外检查是否是数组方法链式调用
+    if (genericArrowPattern.test(s)) {
+      // 检查是否是数组方法的回调
+      if (isArrayMethodChain(doc, lineIndex)) {
+        return false;
+      }
+    }
+    
+    return (
+      functionPattern.test(s) ||
+      constArrowPattern.test(s) ||
+      assignArrowPattern.test(s) ||
+      genericArrowPattern.test(s) ||
+      methodPattern.test(s) ||
+      objectMethodPattern.test(s) ||
+      hookCallPattern.test(s)
+    );
+  };
 
   for (let i = 0; i < doc.lineCount; i++) {
     const text = doc.lineAt(i).text;
-    if (!maybeFuncStart(text)) continue;
+    if (!maybeFuncStart(text, i)) continue;
 
-    // 必须找到本行或后续行的第一个 '{'
+    // 查找第一个 '{'
     let braceLine = i;
     let foundBrace = text.includes('{');
-    while (!foundBrace && braceLine + 1 < doc.lineCount) {
+    
+    // 允许跨行查找（最多 5 行）
+    let lookAhead = 0;
+    while (!foundBrace && braceLine + 1 < doc.lineCount && lookAhead < 5) {
       braceLine++;
+      lookAhead++;
       if (doc.lineAt(braceLine).text.includes('{')) {
         foundBrace = true;
         break;
       }
     }
+    
     if (!foundBrace) continue;
 
     // 从找到的第一个 '{' 开始做 { } 计数直到闭合
@@ -280,19 +365,16 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   // 缓存结果
   functionCache.set(docUri, { ranges: result, version: docVersion });
   
-  // 限制缓存大小，避免内存泄漏
+  // 限制缓存大小
   if (functionCache.size > 50) {
     const firstKey = functionCache.keys().next().value;
-    if (firstKey) {
-      functionCache.delete(firstKey);
-    }
+    if (firstKey) functionCache.delete(firstKey);
   }
   
   return result;
 }
 
 /** 父级优先：去掉被完全包裹的内层函数 */
-// 删除嵌套范围
 function dropNested(ranges: vscode.Range[]): vscode.Range[] {
   const sorted = ranges.slice().sort((a, b) =>
     a.start.line - b.start.line || a.end.line - b.end.line
@@ -302,15 +384,14 @@ function dropNested(ranges: vscode.Range[]): vscode.Range[] {
     while (out.length &&
            r.start.isAfterOrEqual(out[out.length - 1].start) &&
            r.end.isBeforeOrEqual(out[out.length - 1].end)) {
-      out.pop(); // 去掉父级，保留内层
+      out.pop();
     }
     out.push(r);
   }
   return out;
 }
 
-/** Region 抑制：在 suppress 段内的部分全部裁掉（可能产生“残片”） */
-// 过滤掉被抑制的范围
+/** Region 抑制：在 suppress 段内的部分全部裁掉 */
 function filterOutSuppressed(ranges: vscode.Range[], suppress: vscode.Range[]): vscode.Range[] {
   if (!suppress.length) return ranges;
   const out: vscode.Range[] = [];
@@ -320,13 +401,11 @@ function filterOutSuppressed(ranges: vscode.Range[], suppress: vscode.Range[]): 
       const next: vscode.Range[] = [];
       for (const p of pieces) {
         if (p.end.isBeforeOrEqual(s.start) || p.start.isAfterOrEqual(s.end)) {
-          next.push(p); // 无相交
+          next.push(p);
           continue;
         }
-        // 左残片
         if (p.start.isBefore(s.start)) next.push(new vscode.Range(p.start, s.start));
-        // 右残片
-        if (p.end.isAfter(s.end))     next.push(new vscode.Range(s.end, p.end));
+        if (p.end.isAfter(s.end)) next.push(new vscode.Range(s.end, p.end));
       }
       pieces = next;
       if (!pieces.length) break;
@@ -335,27 +414,31 @@ function filterOutSuppressed(ranges: vscode.Range[], suppress: vscode.Range[]): 
   }
   return out;
 }
-/** —— 仅代码段“裁边”版（不在中间切段） —— */
-// 分割为代码段
+
+/** 分割为代码段（仅裁边，不在中间切段） */
 function splitToCodeSegments(doc: vscode.TextDocument, range: vscode.Range): vscode.Range[] {
   const startLine = range.start.line;
   const endLine = range.end.line;
 
   let first = -1;
   let last = -1;
-
   let inBlockComment = false;
 
   const isOnlyPunct = (t: string) => /^[()\[\]{};,]+$/.test(t);
   const isIgnorableLine = (line: string): boolean => {
     const t = line.trim();
-    if (t === '') return true;                 // 空行
-    if (!inBlockComment && t.startsWith('//')) return true;   // 单行注释
-    if (!inBlockComment && t.startsWith('/*') && !t.includes('*/')) { inBlockComment = true; return true; }
-    if (inBlockComment) { if (t.includes('*/')) inBlockComment = false; return true; }
-    if (/^\/\*.*\*\/$/.test(t)) return true;   // 同行块注释
-    // 不要忽略只包含 } 的行，因为这是函数结束花括号
-    if (isOnlyPunct(t) && !t.includes('}')) return true;  // 仅其他标点符号，但不包括 }
+    if (t === '') return true;
+    if (!inBlockComment && t.startsWith('//')) return true;
+    if (!inBlockComment && t.startsWith('/*') && !t.includes('*/')) {
+      inBlockComment = true;
+      return true;
+    }
+    if (inBlockComment) {
+      if (t.includes('*/')) inBlockComment = false;
+      return true;
+    }
+    if (/^\/\*.*\*\/$/.test(t)) return true;
+    if (isOnlyPunct(t) && !t.includes('}')) return true;
     return false;
   };
 
@@ -367,55 +450,42 @@ function splitToCodeSegments(doc: vscode.TextDocument, range: vscode.Range): vsc
     }
   }
 
-  // 整段都是注释/空白：丢弃
   if (first === -1) return [];
 
-  // 仅裁掉首尾的注释/空白，中间保持连续（不分段）
   const endChar = doc.lineAt(last).range.end.character;
   return [new vscode.Range(new vscode.Position(first, 0), new vscode.Position(last, endChar))];
 }
 
-
-
-/** 把一组范围做“仅裁边”，不拆分中间逻辑 */
-// 仅保留代码
+/** 把一组范围做"仅裁边"，不拆分中间逻辑 */
 function keepCodeOnly(doc: vscode.TextDocument, ranges: vscode.Range[]): vscode.Range[] {
   const out: vscode.Range[] = [];
   for (const r of ranges) {
-    const trimmed = splitToCodeSegments(doc, r); // 现在最多返回 0 或 1 段
+    const trimmed = splitToCodeSegments(doc, r);
     if (trimmed.length) out.push(trimmed[0]);
   }
   return out;
 }
 
-
 /** 渲染函数左侧条（不同函数不同颜色；仅左侧，不涂背景） */
-// 应用函数装饰
 export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vscode.Range[]) {
   const doc = editor.document;
 
   // 性能检查：跳过过大的文件
-  if (doc.lineCount > 10000) {
-    return;
-  }
+  if (doc.lineCount > 10000) return;
 
-  // 计算外层函数范围
   const all = computeFunctionRanges(doc);
-  // Region 优先：把 Region 覆盖的部分去掉（可能产生"夹在两个 region 之间"的残片）
   const visible = filterOutSuppressed(all, suppress);
-  // 关键：把这些残片进一步裁成"只包含实质代码"的行段；纯空行/注释段全部丢弃
   const codeOnly = keepCodeOnly(doc, visible);
 
-  // 清空旧的（保证不会残留旧范围）
+  // 清空旧的
   stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
 
-  // 分配颜色并 set - 按函数类型分配颜色
+  // 分配颜色并设置装饰
   const groups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
-  codeOnly.forEach((r, i) => {
-    // 根据函数类型获取颜色
+  codeOnly.forEach((r) => {
     const functionType = getFunctionType(doc, r.start.line);
     
-    // 跳过JSX内联函数和数组回调函数，不为其分配颜色
+    // 跳过 JSX 内联函数和数组回调函数
     if (functionType === 'jsx-inline' || functionType === 'array-callback') {
       return;
     }
@@ -427,16 +497,13 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
   });
 
   groups.forEach((ranges, dt) => editor.setDecorations(dt, ranges));
-    // —— 新增：中文语义化注释 —— //
+
+  // 中文语义化注释
   const annotations: vscode.DecorationOptions[] = [];
 
-  // 1) 正常可见或被 Region 压制的“外层函数”，都加注释（Region 内不画条，但有注释）
-  const forNoteRanges = all; // 不用 visible，这样 Region 内也会有注释
-  for (const r of forNoteRanges) {
+  for (const r of all) {
     const line = r.start.line;
     const chineseLabel = extractFunctionLabel(doc, line);
-    // 添加这行调试
-    console.log(`Line ${line}: ${doc.lineAt(line).text.trim()} -> ${chineseLabel}`);
     
     const targetLine = line > 0 ? line - 1 : line;
     const targetPos = doc.lineAt(targetLine).range.end;
@@ -446,112 +513,63 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
     });
   }
 
-  // 2) 整段被注释掉的“单独方法”，只加注释
+  // 整段被注释掉的函数
   const commented = findCommentedOutFunctionNotes(doc);
-  // 同行去重（避免和 1）重复）
   const usedLines = new Set(annotations.map(a => a.range.start.line));
   for (const c of commented) {
     if (!usedLines.has(c.range.start.line)) annotations.push(c);
   }
 
   editor.setDecorations(annotationType, annotations);
-
 }
 
-// 刷新函数装饰
 export function refreshFunctionDecorations() {
-  // 这里留空即可；真正刷新在 extension.ts 里通过 applyAll 触发
+  // 留空，真正刷新在 extension.ts 里通过 applyAll 触发
 }
 
-// 清理函数装饰
 export function disposeFunctionDecorations() {
   stripeTypeCache.forEach((dt) => dt.dispose());
   stripeTypeCache.clear();
   functionCache.clear();
 }
-/** 提取函数行的中文语义化注释 */
-// 提取函数标签
-// function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): string {
-//   const l1 = doc.lineAt(startLine).text.trim();
-//   const l2 = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text.trim() : '';
-//   const s = `${l1} ${l2}`;
-
-//   // 命名 function
-//   let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
-//   if (m) return `方法：${m[1]}(…)`;
-
-//   // const/let/var 声明的箭头函数
-//   m = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-//   if (m) return `箭头函数：${m[1]}(…)`;
-
-//   // 赋值的箭头函数（无 const/let/var）
-//   m = s.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-//   if (m) return `箭头函数：${m[1]}(…)`;
-
-//   // async 方法
-//   m = s.match(/\basync\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-//   if (m) return `异步方法：${m[1]}(…)`;
-
-//   // 类/对象方法 foo(...) { （在行首或冒号/逗号后）
-//   m = s.match(/^([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-//   if (m) return `方法：${m[1]}(…)`;
-  
-//   m = s.match(/[:,]\s*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-//   if (m) return `方法：${m[1]}(…)`;
-
-//   // 匿名
-//   return '匿名函数';
-// }
 
 /** 自动为函数添加中文注释 */
-// 为函数添加中文注释
 export function addFunctionComments(editor: vscode.TextEditor) {
   const doc = editor.document;
   const edit = new vscode.WorkspaceEdit();
   
   let addedComments = 0;
-  
-  // 需要排除的关键字
   const keywords = /\b(if|else|while|for|switch|catch|with)\s*\(/;
   
   for (let i = 0; i < doc.lineCount; i++) {
     const line = doc.lineAt(i).text.trim();
     
-    // 跳过空行和注释行
     if (!line || line.startsWith('//') || line.startsWith('*') || line.startsWith('/*')) {
       continue;
     }
     
-    // 排除控制流语句
-    if (keywords.test(line)) {
-      continue;
-    }
+    if (keywords.test(line)) continue;
     
     let functionName = '';
     
-    // function 声明
     let match = line.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
     if (match) functionName = match[1];
     
-    // const/let/var 箭头函数
     if (!functionName) {
       match = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
       if (match) functionName = match[1];
     }
     
-    // 赋值箭头函数
     if (!functionName) {
       match = line.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
       if (match) functionName = match[1];
     }
     
-    // async 方法
     if (!functionName) {
       match = line.match(/\basync\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
       if (match) functionName = match[1];
     }
     
-    // 对象方法或类方法（在行首或有前置符号）
     if (!functionName) {
       match = line.match(/^([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
       if (match) functionName = match[1];
@@ -563,7 +581,6 @@ export function addFunctionComments(editor: vscode.TextEditor) {
     }
     
     if (functionName) {
-      // 检查函数上方是否已有注释
       const hasComment = i > 0 && (
         doc.lineAt(i - 1).text.trim().startsWith('//') ||
         doc.lineAt(i - 1).text.trim().startsWith('/*') ||
@@ -588,7 +605,6 @@ export function addFunctionComments(editor: vscode.TextEditor) {
 }
 
 /** 扫描"被注释掉的单独方法"行，生成注释装饰（不画条） */
-// 查找被注释掉的函数注释
 function findCommentedOutFunctionNotes(doc: vscode.TextDocument): vscode.DecorationOptions[] {
   const notes: vscode.DecorationOptions[] = [];
   for (let i = 0; i < doc.lineCount; i++) {
@@ -597,7 +613,6 @@ function findCommentedOutFunctionNotes(doc: vscode.TextDocument): vscode.Decorat
     if (!t.startsWith('//')) continue;
 
     const s = t.replace(/^\/\//, '').trim();
-    // 三类：function / 方法定义 / 箭头函数
     if (/\bfunction\b/.test(s) || /\b[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/.test(s) || /[=:\)]\s*=>\s*\{/.test(s)) {
       const label = '（已注释的方法）';
       notes.push({
