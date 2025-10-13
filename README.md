@@ -1,104 +1,119 @@
-
 # CodeHue
 
 一个为 TypeScript/JavaScript/TSX/JSX 代码提供**结构化颜色装饰**和**语义化注释**的 VSCode 扩展。
 
-新增功能：
-1.同一种功能模块用一种颜色，比如useState用一种颜色，useEfffect用另外一种颜色
-2.支持用户自定义颜色，因为各个人用的主题色是不一致的，同一种配色会冲突
-3.中文函数名翻译最好接AI吧，毕竟可扩展性好一些。
-4.这个插件在VScode里能搜到，在cursor里搜不到，这是为什么，查一下如何同步插件机制
-
 ## ✨ 主要功能
 
-### 🎨 结构着色
-- **函数块着色**：为不同的函数、方法、箭头函数等代码块添加彩色左侧边条
-- **Region 区域高亮**：支持 `// #region ... // #endregion` 标记的区域统一着色
-- **Overview Ruler 显示**：在编辑器右侧标尺同步显示颜色条
-- **智能嵌套处理**：自动处理函数嵌套，避免重复着色
+### 🎨 智能函数着色
+- **React Hooks 统一着色**：同类型的 Hook 使用相同颜色
+  - `useEffect` → 红色 (#FF6B6B)
+  - `useState` → 黄色 (#FADB14)
+  - `useMemo` → 蓝色 (#45B7D1)
+  - `useCallback` → 青色 (#00E5FF)
+  - `useRef` → 紫色 (#7C4DFF)
+  - 更多 Hook 类型...
+- **组件函数着色**：React 组件使用统一颜色 (#DDA0DD)
+- **事件处理函数着色**：handle/on 开头的函数使用粉色 (#FFB6C1)
+- **Region 区域着色**：`// #region` 标记的区域使用绿色 (#85e0a3)
 
-### 📝 语义化注释
-- **函数标识**：自动识别函数类型并显示中文语义化注释
-  - `方法：functionName(…)` - 命名函数
-  - `方法：methodName(…)` - 类/对象方法  
-  - `箭头函数：arrowFunc(…)` - 箭头函数
-  - `匿名函数` - 匿名函数
-- **注释方法提示**：为被注释掉的独立方法显示"（已注释的方法）"提示
-- **虚拟注释**：不修改源文件，以悬浮形式显示注释内容
+### 📝 中文语义化注释
+- **函数类型识别**：自动识别函数类型并显示中文注释
+  - `useEffect(() => {` → `// 副作用处理`
+  - `useState(` → `// 状态管理`
+  - `function ComponentName(` → `// 组件：ComponentName`
+  - `handleClick(` → `// 处理点击`
+- **虚拟注释**：不修改源文件，以悬浮形式显示
+- **智能过滤**：自动忽略 JSX 内联函数和数组方法回调
 
-### 🎯 智能过滤
-- **代码段优化**：自动过滤纯注释和空白行，只对实质代码着色
-- **Region 优先**：Region 标记的区域优先显示，内部函数不着色但保留注释
-- **嵌套处理**：正确处理函数嵌套和区域重叠
+### 🎯 智能识别
+- **自动识别**：支持各种函数定义方式
+  - `function name() {}`
+  - `const name = () => {}`
+  - `name = () => {}`
+  - `useEffect(() => {})`
+  - `React.useEffect(() => {})`
+- **嵌套处理**：正确处理函数嵌套，避免重复着色
+- **性能优化**：智能缓存，大文件也能流畅运行
 
-## 🚀 安装与使用
+## 🚀 快速开始
 
-### 本地开发
-1. **安装依赖**
-   ```bash
-   npm install
-   ```
+### 安装
+1. 在 VSCode 扩展商店搜索 "CodeHue"
+2. 点击安装
+3. 打开任意 `.ts/.tsx/.js/.jsx` 文件即可看到效果
 
-2. **编译项目**
-   ```bash
-   npm run compile
-   ```
+### 使用
+- **自动生效**：安装后自动为函数添加颜色条和注释
+- **手动刷新**：如果未显示，按 `Ctrl+Shift+P` 输入 "CodeHue: Refresh Decorations"
+- **Region 标记**：使用 `// #region 区域名称` 和 `// #endregion` 标记区域
 
-3. **启动扩展**
-   - 在 VSCode 中按 `F5` 启动扩展开发宿主
-   - 或使用 `Run and Debug` → `Launch Extension`
+## 📖 使用示例
 
-4. **测试功能**
-   - 在新打开的 VSCode 窗口中打开 `.ts/.tsx/.js/.jsx` 文件
-   - 查看彩色侧边条和语义化注释
-   - 如未显示，执行命令面板：`CodeHue: Refresh Decorations`
-
-### 打包发布
-```bash
-npm run package
+```typescript
+// #region 用户管理
+function UserProfile() {  // 组件：UserProfile
+  const [user, setUser] = useState(null);  // 状态管理
+  
+  useEffect(() => {  // 副作用处理
+    fetchUser();
+  }, []);
+  
+  const handleSubmit = (data) => {  // 处理提交
+    // ...
+  };
+  
+  return (
+    <div onClick={() => {}}>  {/* JSX 内联函数不着色 */}
+      {users.map(user => (  {/* 数组方法回调不着色 */}
+        <div key={user.id}>{user.name}</div>
+      ))}
+    </div>
+  );
+}
+// #endregion
 ```
 
 ## ⚙️ 配置选项
 
 在 VSCode 设置中可以配置：
 
-- `codehue.regionColor`: Region 区域的背景颜色（默认：`rgba(76, 175, 80, 0.12)`）
-- `codehue.regionBorder`: Region 区域的边框样式（默认：`1px solid rgba(76,175,80,0.45)`）
+- `codehue.regionColor`: Region 区域的背景颜色
+- `codehue.regionBorder`: Region 区域的边框样式
 
 ## 🎨 颜色方案
 
-当前使用彩虹色板：`#FF0000`, `#FF7F00`, `#FFFF00`, `#00C853`, `#FADB14`, `#00E5FF`, `#c98bff`, `#2979FF`, `#7C4DFF`
+### React Hooks
+- `useEffect` → 🔴 红色
+- `useState` → 🟡 黄色  
+- `useMemo` → 🔵 蓝色
+- `useCallback` → 🔵 青色
+- `useRef` → 🟣 紫色
+- `useReducer` → 🟣 粉色
+- `useLayoutEffect` → 🟢 绿色
+- `useContext` → 🟠 橙色
+- 更多 Hook...
 
-- 不同函数块使用不同颜色
-- Region 区域使用统一的绿色主题
-- 颜色在 `src/functionDecorator.ts` 的 `PALETTE` 中可调整
-
-## 📁 项目结构
-
-```
-src/
-├── extension.ts          # 主扩展入口，事件监听和命令注册
-├── functionDecorator.ts  # 函数装饰逻辑，颜色条和语义化注释
-├── regionDecorator.ts    # Region 区域解析和装饰
-└── exclusionBus.ts       # 排除范围总线，协调不同装饰器
-```
+### 其他函数类型
+- React 组件 → 🟣 紫色
+- 事件处理函数 → 🟣 粉色
+- Region 区域 → 🟢 绿色
+- 默认函数 → 🟠 橙色
 
 ## 🔧 技术特性
 
-- **TypeScript 开发**：使用 TypeScript 编写，类型安全
-- **VSCode API**：基于 VSCode 装饰器 API 实现
-- **实时更新**：监听文档变化，实时更新装饰
-- **性能优化**：智能缓存装饰类型，避免重复创建
-- **错误处理**：完善的错误处理和资源清理
+- **零配置**：安装即用，无需额外设置
+- **高性能**：智能缓存，支持大文件
+- **实时更新**：代码变化时自动更新装饰
+- **主题适配**：自动适配 VSCode 主题
+- **多语言支持**：TypeScript, JavaScript, TSX, JSX
 
-## 🚧 未来规划
+## 🚧 计划功能
 
-- [ ] 集成 LLM 翻译服务（OpenAI/DeepSeek/Anthropic）
-- [ ] 支持 JSDoc 注释翻译
-- [ ] 添加"写入注释"功能
-- [ ] 基于代码分析提供权重渲染
+- [ ] 自定义颜色方案
 - [ ] 支持更多编程语言
-- [ ] 自定义主题和配色方案
+- [ ] AI 驱动的函数名翻译
+- [ ] 集成 JSDoc 注释
+- [ ] 函数复杂度可视化
 
 ## 📄 许可证
 
@@ -106,6 +121,17 @@ Apache License 2.0
 
 ---
 
-**版本**: 2.0.0  
+**版本**: 3.0.0  
 **兼容性**: VSCode ^1.85.0  
 **支持语言**: TypeScript, JavaScript, TSX, JSX
+
+## 💡 使用技巧
+
+1. **Region 标记**：使用 `// #region` 标记代码块，获得统一的绿色着色
+2. **函数命名**：使用 `handle` 或 `on` 开头的函数名，会自动识别为事件处理函数
+3. **组件命名**：使用大写字母开头的函数名，会自动识别为 React 组件
+4. **性能优化**：对于超大文件（>10000行），插件会自动跳过处理
+
+## 🐛 问题反馈
+
+如果遇到问题或有建议，请在 [GitHub Issues](https://github.com/your-repo/codehue/issues) 中反馈。
