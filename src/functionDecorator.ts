@@ -22,41 +22,138 @@ const functionCache = new Map<string, { ranges: vscode.Range[], version: number 
 
 // 获取左侧条纹装饰
 function getLeftStripeDecoration(color: string) {
-  if (stripeTypeCache.has(color)) return stripeTypeCache.get(color)!;
+  const config = vscode.workspace.getConfiguration('codehue');
+  const stripeWidth = config.get<string>('stripeWidth', '3px');
+  const cacheKey = `${color}-${stripeWidth}`;
+  
+  if (stripeTypeCache.has(cacheKey)) return stripeTypeCache.get(cacheKey)!;
   const dt = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     borderStyle: 'solid',
     borderColor: color,
-    borderWidth: '0 0 0 3px',
+    borderWidth: `0 0 0 ${stripeWidth}`,
     overviewRulerColor: color,
     overviewRulerLane: vscode.OverviewRulerLane.Left,
   });
-  stripeTypeCache.set(color, dt);
+  stripeTypeCache.set(cacheKey, dt);
   return dt;
 }
 
-/** 函数类型到颜色的映射 */
-const FUNCTION_TYPE_COLORS: Record<string, string> = {
-  'region': '#85e0a3',
-  'useeffect': '#FF6B6B',
-  'usestate': '#FADB14',
-  'usememo': '#45B7D1',
-  'usecallback': '#00E5FF',
-  'useref': '#7C4DFF',
-  'usereducer': '#FF9FF3',
-  'uselayouteffect': '#A8E6CF',
-  'usecontext': '#FFB347',
-  'useimperativehandle': '#98D8C8',
-  'usedebugvalue': '#F7CAC9',
-  'usedeferredvalue': '#92A8D1',
-  'usetransition': '#C5A3FF',
-  'useid': '#B4E7CE',
-  'usesyncexternalstore': '#FFD5A3',
-  'useinsertioneffect': '#E3C5E7',
-  'component': '#DDA0DD',
-  'handler': '#FFB6C1',
-  'default': '#FF7F00'
+/** 颜色方案定义 - 亮色主题 */
+const COLOR_SCHEMES_LIGHT: Record<string, Record<string, string>> = {
+  vibrant: {
+    // === 高频 Hooks（6大主色，差异巨大）===
+    'usestate': '#E65100',         // 🔴 深橙红 → 状态（最常用！）
+    'useeffect': '#1565C0',        // 🔵 深蓝 → 副作用（第二常用！）
+    'usememo': '#6A1B9A',          // 🟣 深紫 → 缓存优化
+    'usecallback': '#00695C',      // 🟢 深青绿 → 回调优化
+    'useref': '#AD1457',           // 🔴 深粉红 → 引用
+    'usecontext': '#EF6C00',       // 🟠 深橙 → 上下文
+    
+    // === 低频 Hooks（复用相近色系）===
+    'usereducer': '#BF360C',       // 深橙红系（复用 useState 色系）
+    'uselayouteffect': '#0D47A1',  // 深蓝系（复用 useEffect 色系）
+    'useimperativehandle': '#004D40', // 深青绿系（复用 useCallback 色系）
+    'usedebugvalue': '#880E4F',    // 深粉红系（复用 useRef 色系）
+    'usedeferredvalue': '#4A148C', // 深紫系（复用 useMemo 色系）
+    'usetransition': '#7B1FA2',    // 中紫系（复用 useMemo 色系）
+    'useid': '#00796B',            // 中青系（复用 useCallback 色系）
+    'usesyncexternalstore': '#F57F17', // 金黄（特殊标识）
+    'useinsertioneffect': '#01579B', // 深蓝系（复用 useEffect 色系）
+    
+    // === 其他 ===
+    'region': '#2E7D32',           // 深绿 → 区域标识
+    'component': '#311B92',        // 深靛蓝 → 组件
+    'handler': '#C62828',          // 深红 → 事件处理
+    'default': '#424242'           // 深灰 → 默认函数
+  },
+  soft: {
+    // === 高频 Hooks（6大主色，差异明显）===
+    'usestate': '#FF9800',         // 🟠 橙色 → 状态
+    'useeffect': '#42A5F5',        // 🔵 蓝色 → 副作用
+    'usememo': '#AB47BC',          // 🟣 紫色 → 缓存优化
+    'usecallback': '#26A69A',      // 🟢 青绿 → 回调优化
+    'useref': '#EC407A',           // 🔴 粉红 → 引用
+    'usecontext': '#FFA726',       // 🟠 浅橙 → 上下文
+    
+    // === 低频 Hooks（复用相近色系）===
+    'usereducer': '#FB8C00',       // 橙色系（复用 useState 色系）
+    'uselayouteffect': '#1E88E5',  // 蓝色系（复用 useEffect 色系）
+    'useimperativehandle': '#00897B', // 青绿系（复用 useCallback 色系）
+    'usedebugvalue': '#D81B60',    // 粉红系（复用 useRef 色系）
+    'usedeferredvalue': '#8E24AA', // 紫色系（复用 useMemo 色系）
+    'usetransition': '#9C27B0',    // 紫色系（复用 useMemo 色系）
+    'useid': '#4DB6AC',            // 青色系（复用 useCallback 色系）
+    'usesyncexternalstore': '#FFD54F', // 金黄（特殊标识）
+    'useinsertioneffect': '#1976D2', // 蓝色系（复用 useEffect 色系）
+    
+    // === 其他 ===
+    'region': '#66BB6A',           // 绿色 → 区域标识
+    'component': '#5E35B1',        // 靛蓝 → 组件
+    'handler': '#E53935',          // 红色 → 事件处理
+    'default': '#757575'           // 灰色 → 默认函数
+  }
 };
+
+/** 颜色方案定义 - 暗色主题 */
+const COLOR_SCHEMES_DARK: Record<string, Record<string, string>> = {
+  vibrant: {
+    'region': '#81C784',           // 明亮绿 → 区域标识
+    'useeffect': '#EF5350',        // 明亮红 → 副作用
+    'usestate': '#FFD54F',         // 明亮黄 → 状态
+    'usememo': '#42A5F5',          // 明亮蓝 → 缓存
+    'usecallback': '#26C6DA',      // 明亮青 → 回调
+    'useref': '#AB47BC',           // 明亮紫 → 引用
+    'usereducer': '#EC407A',       // 明亮粉红 → 状态管理
+    'uselayouteffect': '#81C784',  // 明亮浅绿 → 布局副作用
+    'usecontext': '#FFB74D',       // 明亮橙 → 上下文
+    'useimperativehandle': '#26C6DA', // 明亮蓝绿 → 句柄
+    'usedebugvalue': '#F48FB1',    // 明亮洋红 → 调试
+    'usedeferredvalue': '#7986CB', // 明亮靛蓝 → 延迟值
+    'usetransition': '#CE93D8',    // 明亮紫罗兰 → 过渡
+    'useid': '#80CBC4',            // 明亮蓝绿 → ID
+    'usesyncexternalstore': '#FFD54F', // 明亮金黄 → 外部同步
+    'useinsertioneffect': '#F48FB1', // 明亮玫红 → 插入副作用
+    'component': '#BA68C8',        // 明亮紫 → 组件
+    'handler': '#F48FB1',          // 明亮粉红 → 事件处理
+    'default': '#FFB74D'           // 明亮橙 → 默认
+  },
+  soft: {
+    'region': '#AED581',           // 淡雅绿 → 区域标识
+    'useeffect': '#F48FB1',        // 淡雅玫瑰粉 → 副作用
+    'usestate': '#FFF176',         // 淡雅鹅黄 → 状态
+    'usememo': '#81D4FA',          // 淡雅天蓝 → 缓存
+    'usecallback': '#80CBC4',      // 淡雅青绿 → 回调
+    'useref': '#CE93D8',           // 淡雅淡紫 → 引用
+    'usereducer': '#F48FB1',       // 淡雅粉红 → 状态管理
+    'uselayouteffect': '#C5E1A5',  // 淡雅草绿 → 布局副作用
+    'usecontext': '#FFD54F',       // 淡雅黄橙 → 上下文
+    'useimperativehandle': '#B2EBF2', // 淡雅浅青 → 句柄
+    'usedebugvalue': '#F8BBD0',    // 淡雅浅粉 → 调试
+    'usedeferredvalue': '#9FA8DA', // 淡雅藕紫蓝 → 延迟值
+    'usetransition': '#D1C4E9',    // 淡雅柔紫 → 过渡
+    'useid': '#B2DFDB',            // 淡雅薄荷绿 → ID
+    'usesyncexternalstore': '#FFF59D', // 淡雅明黄 → 外部同步
+    'useinsertioneffect': '#F48FB1', // 淡雅玫瑰粉 → 插入副作用
+    'component': '#B39DDB',        // 淡雅淡紫蓝 → 组件
+    'handler': '#FFB6B9',          // 淡雅粉橙 → 事件处理
+    'default': '#FFE0B2'           // 淡雅米杏色 → 默认
+  }
+};
+
+/** 检测当前主题是否为暗色 */
+function isDarkTheme(): boolean {
+  const themeKind = vscode.window.activeColorTheme.kind;
+  return themeKind === vscode.ColorThemeKind.Dark || themeKind === vscode.ColorThemeKind.HighContrast;
+}
+
+/** 获取当前配置的颜色方案（根据主题自动适配） */
+function getColorScheme(): Record<string, string> {
+  const config = vscode.workspace.getConfiguration('codehue');
+  const schemeName = config.get<string>('colorScheme', 'vibrant');
+  const schemes = isDarkTheme() ? COLOR_SCHEMES_DARK : COLOR_SCHEMES_LIGHT;
+  return schemes[schemeName] || schemes.vibrant;
+}
 
 /** React Hooks 关键字列表 - 包含所有官方 Hooks */
 const HOOK_KEYWORDS = [
@@ -482,6 +579,8 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
 
   // 分配颜色并设置装饰
   const groups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
+  const colorScheme = getColorScheme();
+  
   codeOnly.forEach((r) => {
     const functionType = getFunctionType(doc, r.start.line);
     
@@ -490,7 +589,7 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
       return;
     }
     
-    const color = FUNCTION_TYPE_COLORS[functionType] || FUNCTION_TYPE_COLORS['default'];
+    const color = colorScheme[functionType] || colorScheme['default'];
     const dt = getLeftStripeDecoration(color);
     if (!groups.has(dt)) groups.set(dt, []);
     groups.get(dt)!.push(r);
@@ -498,26 +597,31 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
 
   groups.forEach((ranges, dt) => editor.setDecorations(dt, ranges));
 
-  // 中文语义化注释
+  // 中文语义化注释（受配置控制）
+  const config = vscode.workspace.getConfiguration('codehue');
+  const enableSemanticComments = config.get<boolean>('enableSemanticComments', true);
+  
   const annotations: vscode.DecorationOptions[] = [];
 
-  for (const r of all) {
-    const line = r.start.line;
-    const chineseLabel = extractFunctionLabel(doc, line);
-    
-    const targetLine = line > 0 ? line - 1 : line;
-    const targetPos = doc.lineAt(targetLine).range.end;
-    annotations.push({
-      range: new vscode.Range(targetPos, targetPos),
-      renderOptions: { after: { contentText: ` // ${chineseLabel}` } }
-    });
-  }
+  if (enableSemanticComments) {
+    for (const r of all) {
+      const line = r.start.line;
+      const chineseLabel = extractFunctionLabel(doc, line);
+      
+      const targetLine = line > 0 ? line - 1 : line;
+      const targetPos = doc.lineAt(targetLine).range.end;
+      annotations.push({
+        range: new vscode.Range(targetPos, targetPos),
+        renderOptions: { after: { contentText: ` // ${chineseLabel}` } }
+      });
+    }
 
-  // 整段被注释掉的函数
-  const commented = findCommentedOutFunctionNotes(doc);
-  const usedLines = new Set(annotations.map(a => a.range.start.line));
-  for (const c of commented) {
-    if (!usedLines.has(c.range.start.line)) annotations.push(c);
+    // 整段被注释掉的函数
+    const commented = findCommentedOutFunctionNotes(doc);
+    const usedLines = new Set(annotations.map(a => a.range.start.line));
+    for (const c of commented) {
+      if (!usedLines.has(c.range.start.line)) annotations.push(c);
+    }
   }
 
   editor.setDecorations(annotationType, annotations);

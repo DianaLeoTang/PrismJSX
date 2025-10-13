@@ -18,12 +18,20 @@ export const onRegionsChanged = _regionEmitter.event;
 // 仅左侧细条，不涂底色
 // 确保装饰类型
 function ensureDecorationType(): vscode.TextEditorDecorationType {
-  if (regionDecorationType) return regionDecorationType;
+  const config = vscode.workspace.getConfiguration('codehue');
+  const stripeWidth = config.get<string>('stripeWidth', '3px');
+  
+  // 如果配置改变，需要重新创建装饰类型
+  if (regionDecorationType) {
+    regionDecorationType.dispose();
+    regionDecorationType = null;
+  }
+  
   regionDecorationType = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     borderStyle: 'solid',
     borderColor: REGION_COLOR,
-    borderWidth: '0 0 0 3px',
+    borderWidth: `0 0 0 ${stripeWidth}`,
     overviewRulerColor: REGION_COLOR,
     overviewRulerLane: vscode.OverviewRulerLane.Left,
   });
