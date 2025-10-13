@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { onExclusionRanges } from './exclusionBus';
-import { extractFunctionLabel, translateFunctionNameToChinese } from './semanticTranslator';
+import { extractFunctionLabel, translateFunctionNameToChinese, translateFunctionNameToChineseSync } from './semanticTranslator';
 import { COLOR_SCHEMES_LIGHT, COLOR_SCHEMES_DARK } from './colorSchemes';
 
 let suppressRanges: vscode.Range[] = [];
@@ -463,6 +463,72 @@ function keepCodeOnly(doc: vscode.TextDocument, ranges: vscode.Range[]): vscode.
   return out;
 }
 
+/**
+ * 预加载所有函数的翻译（异步，在后台进行）
+ */
+async function preloadTranslations(doc: vscode.TextDocument, ranges: vscode.Range[]): Promise<void> {
+  const config = vscode.workspace.getConfiguration('codehue');
+  const translationMode = config.get<string>('translationMode', 'ai');
+  const apiKey = config.get<string>('deepseekApiKey', '');
+
+  // 只在 AI 模式且配置了 API Key 时预加载
+  if (translationMode !== 'ai' || !apiKey) {
+    return;
+  }
+
+  // 提取所有函数名
+  const functionNames: string[] = [];
+  for (const r of ranges) {
+    const line = r.start.line;
+    const l1 = doc.lineAt(line).text.trim();
+    const l2 = line + 1 < doc.lineCount ? doc.lineAt(line + 1).text.trim() : '';
+    const s = `${l1} ${l2}`;
+
+    let functionName = '';
+    let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
+    if (m) functionName = m[1];
+
+    if (!functionName) {
+      m = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
+      if (m) functionName = m[1];
+    }
+
+    if (!functionName) {
+      m = s.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
+      if (m) functionName = m[1];
+    }
+
+    if (!functionName) {
+      m = s.match(/^(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+      if (m) functionName = m[1];
+    }
+
+    if (!functionName) {
+      m = s.match(/[:,]\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+      if (m) functionName = m[1];
+    }
+
+    if (functionName && functionName !== 'anonymous') {
+      functionNames.push(functionName);
+    }
+  }
+
+  // 在后台批量预加载翻译
+  const promises = functionNames.map(name => 
+    translateFunctionNameToChinese(name).catch(err => {
+      // 静默失败，不影响主流程
+      console.debug(`预加载翻译失败: ${name}`, err);
+    })
+  );
+
+  // 并发限制：每次最多处理 10 个
+  const batchSize = 10;
+  for (let i = 0; i < promises.length; i += batchSize) {
+    const batch = promises.slice(i, i + batchSize);
+    await Promise.allSettled(batch);
+  }
+}
+
 /** 渲染函数左侧条（不同函数不同颜色；仅左侧，不涂背景） */
 export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vscode.Range[]) {
   const doc = editor.document;
@@ -473,6 +539,11 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
   const all = computeFunctionRanges(doc);
   const visible = filterOutSuppressed(all, suppress);
   const codeOnly = keepCodeOnly(doc, visible);
+
+  // 在后台预加载翻译（不阻塞渲染）
+  preloadTranslations(doc, all).catch(err => {
+    console.debug('预加载翻译失败', err);
+  });
 
   // 清空旧的
   stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { applyFunctionDecorations, disposeFunctionDecorations, refreshFunctionDecorations } from './functionDecorator';
 import { applyRegionDecorations, disposeRegionDecorations, getRegionSuppressionRanges, onRegionsChanged } from './regionDecorator';
+import { clearTranslationCache } from './semanticTranslator';
 
 // 防抖定时器
 let debounceTimer: NodeJS.Timeout | undefined;
@@ -95,6 +96,18 @@ export function activate(context: vscode.ExtensionContext) {
       const ed = vscode.window.activeTextEditor;
       if (ed) {
         refreshFunctionDecorations();
+        applyAll(ed);
+      }
+    })
+  );
+
+  // 清空翻译缓存命令
+  context.subscriptions.push(
+    vscode.commands.registerCommand('codehue.clearCache', () => {
+      clearTranslationCache();
+      vscode.window.showInformationMessage('翻译缓存已清空');
+      const ed = vscode.window.activeTextEditor;
+      if (ed) {
         applyAll(ed);
       }
     })

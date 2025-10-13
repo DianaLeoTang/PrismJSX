@@ -29,6 +29,10 @@
       {
         "command": "codehue.refresh",
         "title": "CodeHue: Refresh Decorations"
+      },
+      {
+        "command": "codehue.clearCache",
+        "title": "CodeHue: Clear Translation Cache"
       }
     ],
     "configuration": {
@@ -80,6 +84,33 @@
             "森林风格 - 绿色系，沉稳专注",
             "霓虹风格 - 荧光色，炫酷科技感"
           ]
+        },
+        "codehue.deepseekApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "DeepSeek API Key for intelligent function name translation (leave empty to use manual mapping)"
+        },
+        "codehue.deepseekModel": {
+          "type": "string",
+          "default": "deepseek-chat",
+          "description": "DeepSeek model to use for translation",
+          "enum": [
+            "deepseek-chat",
+            "deepseek-coder"
+          ]
+        },
+        "codehue.translationMode": {
+          "type": "string",
+          "default": "ai",
+          "description": "Translation mode: ai (DeepSeek API) or manual (built-in mapping)",
+          "enum": [
+            "ai",
+            "manual"
+          ],
+          "enumDescriptions": [
+            "使用 DeepSeek AI 智能翻译（需配置 API Key）",
+            "使用内置手动映射表"
+          ]
         }
       }
     }
@@ -99,5 +130,8 @@
     "standard-version": "^9.5.0",
     "tslib": "^2.6.2",
     "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
   }
 }

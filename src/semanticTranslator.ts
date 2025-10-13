@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
+import axios from 'axios';
 
-// ============ 中文语义转换字典 ============
+// ============ 中文语义转换字典（降级方案） ============
 
 // 常见动词映射
 const VERB_MAP: Record<string, string> = {
@@ -259,9 +260,84 @@ const SUFFIX_MAP: Record<string, string> = {
   'able': '可',
 };
 
+// ============ DeepSeek API 集成 ============
+
+// 翻译缓存（避免重复调用 API）
+const translationCache = new Map<string, string>();
+
+// API 调用限流（避免并发过多）
+let pendingRequests = new Map<string, Promise<string>>();
+
 /**
- * 将驼峰命名转换为单词数组
- * handleCloseModal -> ['handle', 'Close', 'Modal']
+ * 使用 DeepSeek API 翻译函数名
+ */
+async function translateWithDeepSeek(functionName: string): Promise<string> {
+  const config = vscode.workspace.getConfiguration('codehue');
+  const apiKey = config.get<string>('deepseekApiKey', '');
+  const model = config.get<string>('deepseekModel', 'deepseek-chat');
+
+  if (!apiKey) {
+    throw new Error('DeepSeek API Key not configured');
+  }
+
+  // 检查是否已有相同请求正在进行
+  if (pendingRequests.has(functionName)) {
+    return await pendingRequests.get(functionName)!;
+  }
+
+  const requestPromise = (async () => {
+    try {
+      const response = await axios.post(
+        'https://api.deepseek.com/v1/chat/completions',
+        {
+          model: model,
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个专业的代码翻译助手。请将英文函数名翻译成简洁的中文语义描述，只返回翻译结果，不要解释。要求：1) 保持简洁（2-6个字）2) 体现函数的核心功能 3) 使用专业术语'
+            },
+            {
+              role: 'user',
+              content: `将这个函数名翻译成中文：${functionName}\n\n只返回翻译结果，不要任何解释。`
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 50
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000 // 5秒超时
+        }
+      );
+
+      const translation = response.data.choices[0]?.message?.content?.trim() || functionName;
+      
+      // 清理可能的引号或额外文字
+      const cleaned = translation
+        .replace(/^["'「『]|["'」』]$/g, '')
+        .replace(/^翻译结果[：:]\s*/i, '')
+        .replace(/^中文[：:]\s*/i, '')
+        .trim();
+
+      return cleaned;
+    } catch (error: any) {
+      console.error(`DeepSeek API 调用失败: ${error.message}`);
+      throw error;
+    } finally {
+      // 清理pending请求
+      pendingRequests.delete(functionName);
+    }
+  })();
+
+  pendingRequests.set(functionName, requestPromise);
+  return await requestPromise;
+}
+
+/**
+ * 将驼峰命名转换为单词数组（手动映射用）
  */
 function camelCaseToWords(name: string): string[] {
   // 处理常见缩写（保持大写）
@@ -303,12 +379,13 @@ function camelCaseToWords(name: string): string[] {
 }
 
 /**
- * 将函数名转换为中文语义
+ * 手动映射翻译（降级方案）
  */
-export function translateFunctionNameToChinese(functionName: string): string {
+function translateManually(functionName: string): string {
   if (!functionName || functionName === 'anonymous') {
     return '匿名函数';
   }
+  
   // 拆分为单词
   const words = camelCaseToWords(functionName);
   if (words.length === 0) return functionName;
@@ -361,10 +438,89 @@ export function translateFunctionNameToChinese(functionName: string): string {
 }
 
 /**
+ * 将函数名转换为中文语义
+ * 根据配置选择使用 AI 翻译或手动映射
+ */
+export async function translateFunctionNameToChinese(functionName: string): Promise<string> {
+  if (!functionName || functionName === 'anonymous') {
+    return '匿名函数';
+  }
+
+  // 检查缓存
+  const cached = translationCache.get(functionName);
+  if (cached) {
+    return cached;
+  }
+
+  const config = vscode.workspace.getConfiguration('codehue');
+  const translationMode = config.get<string>('translationMode', 'ai');
+  const apiKey = config.get<string>('deepseekApiKey', '');
+
+  let translation: string;
+
+  // 如果选择 AI 模式且配置了 API Key，使用 DeepSeek
+  if (translationMode === 'ai' && apiKey) {
+    try {
+      translation = await translateWithDeepSeek(functionName);
+    } catch (error) {
+      console.warn(`AI 翻译失败，降级使用手动映射: ${error}`);
+      translation = translateManually(functionName);
+    }
+  } else {
+    // 使用手动映射
+    translation = translateManually(functionName);
+  }
+
+  // 缓存结果
+  translationCache.set(functionName, translation);
+  
+  // 限制缓存大小
+  if (translationCache.size > 500) {
+    const firstKey = translationCache.keys().next().value;
+    if (firstKey) {
+      translationCache.delete(firstKey);
+    }
+  }
+
+  return translation;
+}
+
+/**
+ * 同步版本的翻译函数（用于向后兼容）
+ * 如果启用 AI 模式，会先尝试从缓存获取，否则返回手动映射结果
+ */
+export function translateFunctionNameToChineseSync(functionName: string): string {
+  if (!functionName || functionName === 'anonymous') {
+    return '匿名函数';
+  }
+
+  // 先检查缓存
+  const cached = translationCache.get(functionName);
+  if (cached) {
+    return cached;
+  }
+
+  const config = vscode.workspace.getConfiguration('codehue');
+  const translationMode = config.get<string>('translationMode', 'ai');
+  const apiKey = config.get<string>('deepseekApiKey', '');
+
+  // 如果启用 AI 模式，在后台异步获取翻译
+  if (translationMode === 'ai' && apiKey) {
+    translateFunctionNameToChinese(functionName).then(result => {
+      // 翻译完成后会自动缓存，下次就能用了
+    }).catch(() => {
+      // 错误已在 async 函数中处理
+    });
+  }
+
+  // 立即返回手动映射结果
+  return translateManually(functionName);
+}
+
+/**
  * 改进的 extractFunctionLabel - 返回中文语义
  * 与 computeFunctionRanges 保持一致的检测逻辑
  */
-/** 提取函数名并翻译为中文 */
 export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): string {
   const l1 = doc.lineAt(startLine).text.trim();
   const l2 = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text.trim() : '';
@@ -398,8 +554,6 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
   if (!functionName) {
     m = s.match(/[=:\)]\s*=>\s*\{/);
     if (m) {
-      // 对于匿名箭头函数，尝试从上下文推断名称
-      // 这里可能需要更复杂的逻辑，暂时标记为匿名
       functionName = 'anonymous';
     }
   }
@@ -436,7 +590,15 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     return '匿名函数';
   }
 
-  // 翻译为中文
-  const chineseName = translateFunctionNameToChinese(functionName);
+  // 使用同步版本的翻译（优先从缓存获取）
+  const chineseName = translateFunctionNameToChineseSync(functionName);
   return chineseName;
+}
+
+/**
+ * 清空翻译缓存
+ */
+export function clearTranslationCache(): void {
+  translationCache.clear();
+  pendingRequests.clear();
 }
