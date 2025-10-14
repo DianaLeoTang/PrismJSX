@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.4.0](https://github.com/DianaLeoTang/PrismJSX/compare/v3.3.0...v3.4.0) (2025-10-14)
+
+
+### ✨ 新功能
+
+* 创建环境变量，防止token暴露 ([d1f80f2](https://github.com/DianaLeoTang/PrismJSX/commit/d1f80f25706a9e2c9d05c36717f4922dd327ce48))
+* 更新插件文档 ([eceb757](https://github.com/DianaLeoTang/PrismJSX/commit/eceb757dc0336761dae266a6be4859a04eb61449))
+* 更新readme文件，增加私有云上AI的接入 ([539eae3](https://github.com/DianaLeoTang/PrismJSX/commit/539eae322a10f9634336d0e221fb8c16058fe8be))
+* 集成优先级翻译到装饰器渲染流程 ([27b2cad](https://github.com/DianaLeoTang/PrismJSX/commit/27b2cad07b120523337b96d9e6c9b0d6890f9de1))
+* 兼容两种写法，开发环境使用.env 环境变量，生产环境用构建脚本注入真实 token。 ([aa67516](https://github.com/DianaLeoTang/PrismJSX/commit/aa675161f2e49488b81be6d74704fe49f6c0db40))
+* 进一步增强对函数名的识别 ([7d0ade0](https://github.com/DianaLeoTang/PrismJSX/commit/7d0ade09b1a8db3b0cb4bfa2de8c29bb137da3ef))
+* 扩展激活时初始化翻译系统 ([8d1fd48](https://github.com/DianaLeoTang/PrismJSX/commit/8d1fd48df716bd1a1fec0d49cf72c6a51711bd36))
+* 删除手动映射文件词汇，删除Deepseek API 的引入，引入私有云上的AI模型 ([103bb54](https://github.com/DianaLeoTang/PrismJSX/commit/103bb542226f8bd024e67843eb254dce601b111c))
+* 文档函数名翻译完成后，强制刷新当前文件缓存 ([24bd842](https://github.com/DianaLeoTang/PrismJSX/commit/24bd842503e42105e563a075ec884f2d286e62f1))
+* 细粒度调整函数和hooks混合在一起时，对函数的识别 ([80d7b0e](https://github.com/DianaLeoTang/PrismJSX/commit/80d7b0e092c80e50ab60317cc642648042a73a85))
+* 修改打包命令 ([a6effa5](https://github.com/DianaLeoTang/PrismJSX/commit/a6effa5c4d2774196d7b62240bfcc284fff861eb))
+* 修改翻译策略，解决性能问题，429限制问题 ([a1ac91c](https://github.com/DianaLeoTang/PrismJSX/commit/a1ac91c8ab9206289182ff28678c2a72865c9dbd))
+* 增强函数名识别，支持export const func = (param = value): Complex.Type => {}等所有箭头函数变体 ([c8e947b](https://github.com/DianaLeoTang/PrismJSX/commit/c8e947b02744a891464243316bea17b9e3d7e2cf))
+
 ## [3.3.0](https://github.com/DianaLeoTang/PrismJSX/compare/v3.1.1...v3.3.0) (2025-10-13)
 
 
