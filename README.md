@@ -166,6 +166,35 @@ function UserProfile() {  // 组件：UserProfile
 - **主题切换响应**：切换主题时立即更新颜色，无需手动刷新
 - **多语言支持**：TypeScript, JavaScript, TSX, JSX
 
+## 🤖 AI 智能翻译
+
+CodeHue 集成了私有云 AI 模型，可智能翻译函数名为中文语义。
+
+✨ **开箱即用**：插件已内置 API Key，无需任何配置，安装即可使用！
+
+### 快速开始
+
+1. **安装插件**：在 VSCode 扩展商店搜索 "CodeHue"
+2. **开始使用**：打开 TypeScript/JavaScript 文件即可看到中文翻译
+3. **完成**：就是这么简单！
+
+### 可选配置
+
+插件已内置 API Key，默认配置即可使用。
+
+### 支持的模型
+
+- `aiplat/qwen2.5-72b-instruct` - Qwen2.5 72B 指令模型（推荐，翻译质量最高）
+- `aiplat/qwen2.5-vl-72b` - Qwen2.5 VL 72B 视觉语言模型
+- `Qwen3-4B` - Qwen3 4B 轻量模型（响应快）
+
+### 工作原理
+
+- **自动翻译**：插件内置 API Key，启用后自动调用私有云 AI 模型翻译
+- **智能缓存**：已翻译的函数名会被缓存，无需重复调用 API，响应即时
+- **失败降级**：AI 翻译失败时自动显示原函数名，不影响使用
+- **一键禁用**：可通过 `codehue.enableAITranslation` 快速禁用 AI 翻译
+
 ## 🚧 计划功能
 
 - [ ] 自定义颜色方案
