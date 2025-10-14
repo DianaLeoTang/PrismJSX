@@ -55,156 +55,265 @@ function getApiKey(): string {
 // 翻译缓存（避免重复调用 API）
 const translationCache = new Map<string, string>();
 
-// API 调用限流（避免并发过多）
-let pendingRequests = new Map<string, Promise<string>>();
-
-// 并发控制：同时最多处理的请求数
-const MAX_CONCURRENT_REQUESTS = 3;
-let activeRequests = 0;
-let requestQueue: Array<() => void> = [];
+// 持久化缓存到本地存储（跨会话保留）
+let globalStorageUri: vscode.Uri | undefined;
 
 /**
- * 等待并发槽位
+ * 初始化缓存系统
  */
-async function waitForSlot(): Promise<void> {
-  if (activeRequests < MAX_CONCURRENT_REQUESTS) {
-    activeRequests++;
+export function initializeCache(context: vscode.ExtensionContext): void {
+  globalStorageUri = context.globalStorageUri;
+  loadCacheFromDisk();
+}
+
+/**
+ * 从磁盘加载缓存
+ */
+async function loadCacheFromDisk(): Promise<void> {
+  if (!globalStorageUri) return;
+  
+  try {
+    const cacheFile = vscode.Uri.joinPath(globalStorageUri, 'translation-cache.json');
+    const data = await vscode.workspace.fs.readFile(cacheFile);
+    const cache = JSON.parse(data.toString());
+    
+    Object.entries(cache).forEach(([key, value]) => {
+      translationCache.set(key, value as string);
+    });
+    
+    console.log(`加载了 ${translationCache.size} 条翻译缓存`);
+  } catch (error) {
+    // 缓存文件不存在或损坏，忽略
+  }
+}
+
+/**
+ * 保存缓存到磁盘
+ */
+async function saveCacheToDisk(): Promise<void> {
+  if (!globalStorageUri) return;
+  
+  try {
+    await vscode.workspace.fs.createDirectory(globalStorageUri);
+    const cacheFile = vscode.Uri.joinPath(globalStorageUri, 'translation-cache.json');
+    const cache = Object.fromEntries(translationCache);
+    await vscode.workspace.fs.writeFile(cacheFile, Buffer.from(JSON.stringify(cache)));
+  } catch (error) {
+    console.error('保存缓存失败:', error);
+  }
+}
+
+// 批量翻译队列
+interface TranslationTask {
+  functionName: string;
+  resolve: (value: string) => void;
+  reject: (reason: any) => void;
+  priority: number; // 0=高优先级（可见区域），1=普通
+}
+
+let translationQueue: TranslationTask[] = [];
+let processingBatch = false;
+
+// 并发控制
+const MAX_CONCURRENT_REQUESTS = 2; // 降低并发数
+let activeRequests = 0;
+let lastRequestTime = 0;
+const MIN_REQUEST_INTERVAL = 1000; // 每次请求间隔至少1000ms（1秒）
+
+/**
+ * 批量翻译函数（一次API调用翻译多个函数名）
+ */
+async function translateBatch(functionNames: string[]): Promise<Map<string, string>> {
+  const config = vscode.workspace.getConfiguration('codehue');
+  const baseUrl = config.get<string>('aiModelBaseUrl', 'http://llm-model-hub-apis.sf-express.com');
+  const model = config.get<string>('aiModelName', 'aiplat/qwen2.5-72b-instruct');
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+    throw new Error('未配置 API Key');
+  }
+
+  // 等待请求间隔
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+  if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+    await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest));
+  }
+  lastRequestTime = Date.now();
+
+  const url = `${baseUrl}/v1/chat/completions`;
+  
+  // 构建批量翻译提示词
+  const functionList = functionNames.map((name, idx) => `${idx + 1}. ${name}`).join('\n');
+  
+  try {
+    const response = await axios.post(
+      url,
+      {
+        model: model,
+        messages: [
+          {
+            role: 'system',
+            content: '你是一个专业的代码翻译助手。请将英文函数名翻译成简洁的中文语义描述。要求：1) 保持简洁（2-6个字）2) 体现函数的核心功能 3) 使用专业术语'
+          },
+          {
+            role: 'user',
+            content: `请将以下函数名翻译成中文，按序号返回，格式为"序号. 中文翻译"：\n\n${functionList}\n\n只返回翻译结果，每行一个，不要任何解释。`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 200,
+        stream: false
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000,
+        httpAgent: new (require('http').Agent)({ 
+          keepAlive: true,
+          keepAliveMsecs: 30000,
+          maxSockets: MAX_CONCURRENT_REQUESTS
+        }),
+        httpsAgent: new (require('https').Agent)({ 
+          keepAlive: true,
+          keepAliveMsecs: 30000,
+          maxSockets: MAX_CONCURRENT_REQUESTS
+        })
+      }
+    );
+
+    const content = response.data.choices[0]?.message?.content?.trim() || '';
+    const lines = content.split('\n').filter((l: string) => l.trim());
+    
+    const results = new Map<string, string>();
+    
+    // 解析批量翻译结果
+    lines.forEach((line: string, idx: number) => {
+      if (idx < functionNames.length) {
+        // 尝试解析 "序号. 翻译" 格式
+        const match = line.match(/^\d+\.\s*(.+)$/);
+        const translation = match ? match[1].trim() : line.trim();
+        
+        const cleaned = translation
+          .replace(/^["'「『]|["'」』]$/g, '')
+          .replace(/^翻译结果[：:]\s*/i, '')
+          .replace(/^中文[：:]\s*/i, '')
+          .trim();
+        
+        results.set(functionNames[idx], cleaned || functionNames[idx]);
+      }
+    });
+    
+    // 如果某些函数没有翻译结果，使用原函数名
+    functionNames.forEach(name => {
+      if (!results.has(name)) {
+        results.set(name, name);
+      }
+    });
+    
+    return results;
+  } catch (error: any) {
+    console.error(`批量翻译失败: ${error.message}`);
+    
+    // 如果是 429 错误，等待更长时间
+    if (error.response?.status === 429) {
+      console.warn('触发速率限制，等待10秒后重试...');
+      await new Promise(resolve => setTimeout(resolve, 10000));
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * 处理翻译队列（批量处理）
+ */
+async function processBatchQueue(): Promise<void> {
+  if (processingBatch || translationQueue.length === 0) {
     return;
   }
-  
-  // 等待有空闲槽位
-  return new Promise(resolve => {
-    requestQueue.push(() => {
+
+  processingBatch = true;
+
+  try {
+    while (translationQueue.length > 0) {
+      // 等待并发槽位
+      while (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // 按优先级排序
+      translationQueue.sort((a, b) => a.priority - b.priority);
+
+      // 取出一批待翻译的函数（最多5个一批，避免单次请求过大）
+      const batchSize = Math.min(5, translationQueue.length);
+      const batch = translationQueue.splice(0, batchSize);
+      
+      const functionNames = batch.map(task => task.functionName);
+      
       activeRequests++;
-      resolve();
+
+      try {
+        const results = await translateBatch(functionNames);
+        
+        // 更新缓存并返回结果
+        batch.forEach(task => {
+          const translation = results.get(task.functionName) || task.functionName;
+          translationCache.set(task.functionName, translation);
+          task.resolve(translation);
+        });
+
+        // 定期保存缓存
+        if (translationCache.size % 20 === 0) {
+          saveCacheToDisk();
+        }
+      } catch (error) {
+        // 批量失败时，回退到单个翻译或直接返回原函数名
+        batch.forEach(task => {
+          console.warn(`翻译失败，保留原函数名: ${task.functionName}`);
+          translationCache.set(task.functionName, task.functionName);
+          task.resolve(task.functionName);
+        });
+      } finally {
+        activeRequests--;
+      }
+
+      // 批次间增加延迟，避免触发速率限制
+      if (translationQueue.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  } finally {
+    processingBatch = false;
+    
+    // 最终保存缓存
+    await saveCacheToDisk();
+  }
+}
+
+/**
+ * 使用私有云AI模型翻译函数名（队列化处理）
+ */
+async function translateWithAI(functionName: string, priority: number = 1): Promise<string> {
+  return new Promise((resolve, reject) => {
+    translationQueue.push({
+      functionName,
+      resolve,
+      reject,
+      priority
     });
+
+    // 触发批量处理
+    processBatchQueue();
   });
 }
 
 /**
- * 释放并发槽位
- */
-function releaseSlot(): void {
-  activeRequests--;
-  const next = requestQueue.shift();
-  if (next) {
-    next();
-  }
-}
-
-/**
- * 使用私有云AI模型翻译函数名（带重试机制和并发控制）
- */
-async function translateWithAI(functionName: string, retryCount = 0): Promise<string> {
-  const config = vscode.workspace.getConfiguration('codehue');
-  const baseUrl = config.get<string>('aiModelBaseUrl', 'http://llm-model-hub-apis.sf-express.com');
-  const model = config.get<string>('aiModelName', 'aiplat/qwen2.5-72b-instruct');
-  const maxRetries = 2; // 最多重试2次
-  
-  // 获取 API Key
-  const apiKey = getApiKey();
-  
-  // 检查 API Key 是否有效
-  if (!apiKey) {
-    console.warn('未配置有效的 API Key，AI 翻译功能不可用');
-    throw new Error('未配置 API Key');
-  }
-
-  // 检查是否已有相同请求正在进行
-  if (pendingRequests.has(functionName)) {
-    return await pendingRequests.get(functionName)!;
-  }
-
-  const requestPromise = (async () => {
-    try {
-      // 等待并发槽位
-      await waitForSlot();
-      
-      const url = `${baseUrl}/v1/chat/completions`;
-      
-      const response = await axios.post(
-        url,
-        {
-          model: model,
-          messages: [
-            {
-              role: 'system',
-              content: '你是一个专业的代码翻译助手。请将英文函数名翻译成简洁的中文语义描述，只返回翻译结果，不要解释。要求：1) 保持简洁（2-6个字）2) 体现函数的核心功能 3) 使用专业术语'
-            },
-            {
-              role: 'user',
-              content: `将这个函数名翻译成中文：${functionName}\n\n只返回翻译结果，不要任何解释。`
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 50,
-          stream: false
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000, // 增加到30秒超时
-          // 添加 keepAlive 和其他配置
-          httpAgent: new (require('http').Agent)({ 
-            keepAlive: true,
-            keepAliveMsecs: 30000,
-            maxSockets: MAX_CONCURRENT_REQUESTS
-          }),
-          httpsAgent: new (require('https').Agent)({ 
-            keepAlive: true,
-            keepAliveMsecs: 30000,
-            maxSockets: MAX_CONCURRENT_REQUESTS
-          })
-        }
-      );
-
-      const translation = response.data.choices[0]?.message?.content?.trim() || functionName;
-      
-      // 清理可能的引号或额外文字
-      const cleaned = translation
-        .replace(/^["'「『]|["'」』]$/g, '')
-        .replace(/^翻译结果[：:]\s*/i, '')
-        .replace(/^中文[：:]\s*/i, '')
-        .trim();
-
-      return cleaned;
-    } catch (error: any) {
-      // 如果是网络错误且还有重试次数，进行重试
-      const isNetworkError = error.code === 'ECONNRESET' || 
-                            error.code === 'ETIMEDOUT' || 
-                            error.message?.includes('socket hang up') ||
-                            error.message?.includes('timeout');
-      
-      if (isNetworkError && retryCount < maxRetries) {
-        console.warn(`AI翻译网络错误，重试 ${retryCount + 1}/${maxRetries}: ${functionName}`);
-        // 指数退避：等待更长时间后重试
-        await new Promise(resolve => setTimeout(resolve, 2000 * Math.pow(2, retryCount)));
-        pendingRequests.delete(functionName); // 清理旧请求
-        return translateWithAI(functionName, retryCount + 1);
-      }
-      
-      console.error(`AI模型调用失败（已重试${maxRetries}次）: ${error.message}`);
-      throw error;
-    } finally {
-      // 释放并发槽位
-      releaseSlot();
-      // 清理pending请求
-      pendingRequests.delete(functionName);
-    }
-  })();
-
-  pendingRequests.set(functionName, requestPromise);
-  return await requestPromise;
-}
-
-
-/**
  * 将函数名转换为中文语义
- * 完全依赖 AI 模型进行翻译（使用内置 API Key）
  */
-export async function translateFunctionNameToChinese(functionName: string): Promise<string> {
+export async function translateFunctionNameToChinese(functionName: string, priority: number = 1): Promise<string> {
   if (!functionName || functionName === 'anonymous') {
     return '匿名函数';
   }
@@ -218,33 +327,17 @@ export async function translateFunctionNameToChinese(functionName: string): Prom
   const config = vscode.workspace.getConfiguration('codehue');
   const enableAI = config.get<boolean>('enableAITranslation', true);
 
-  let translation: string;
-
-  // 如果启用 AI，使用私有云AI服务（内置API Key）
-  if (enableAI) {
-    try {
-      translation = await translateWithAI(functionName);
-    } catch (error) {
-      console.warn(`AI 翻译失败，保留原函数名: ${error}`);
-      translation = functionName; // AI失败时保留原函数名
-    }
-  } else {
-    // 未启用AI，保留原函数名
-    translation = functionName;
+  if (!enableAI) {
+    return functionName;
   }
 
-  // 缓存结果
-  translationCache.set(functionName, translation);
-  
-  // 限制缓存大小
-  if (translationCache.size > 500) {
-    const firstKey = translationCache.keys().next().value;
-    if (firstKey) {
-      translationCache.delete(firstKey);
-    }
+  try {
+    const translation = await translateWithAI(functionName, priority);
+    return translation;
+  } catch (error) {
+    console.warn(`AI 翻译失败，保留原函数名: ${error}`);
+    return functionName;
   }
-
-  return translation;
 }
 
 // 回调函数：翻译完成后刷新界面
@@ -253,7 +346,7 @@ let onTranslationComplete: (() => void) | undefined;
 /**
  * 设置翻译完成回调（用于刷新界面）
  */
-export function setTranslationCompleteCallback(callback: () => void) {
+export function setTranslationCompleteCallback(callback: () => void): void {
   onTranslationComplete = callback;
 }
 
@@ -261,7 +354,7 @@ export function setTranslationCompleteCallback(callback: () => void) {
  * 同步版本的翻译函数（用于向后兼容）
  * 如果启用 AI，会先尝试从缓存获取，否则返回原函数名并在后台异步翻译
  */
-export function translateFunctionNameToChineseSync(functionName: string): string {
+export function translateFunctionNameToChineseSync(functionName: string, isVisible: boolean = false): string {
   if (!functionName || functionName === 'anonymous') {
     return '匿名函数';
   }
@@ -277,7 +370,10 @@ export function translateFunctionNameToChineseSync(functionName: string): string
 
   // 如果启用 AI，在后台异步获取翻译
   if (enableAI) {
-    translateFunctionNameToChinese(functionName).then(result => {
+    // 可见区域的函数设置高优先级
+    const priority = isVisible ? 0 : 1;
+    
+    translateFunctionNameToChinese(functionName, priority).then(result => {
       // 翻译完成后触发界面刷新
       if (onTranslationComplete) {
         onTranslationComplete();
@@ -295,7 +391,7 @@ export function translateFunctionNameToChineseSync(functionName: string): string
  * 改进的 extractFunctionLabel - 返回中文语义
  * 与 computeFunctionRanges 保持一致的检测逻辑
  */
-export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number): string {
+export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number, isVisible: boolean = false): string {
   const l1 = doc.lineAt(startLine).text.trim();
   const l2 = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text.trim() : '';
   const s = `${l1} ${l2}`;
@@ -303,12 +399,6 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
   let functionName = '';
 
   // 0. 优先处理 React Hook 的变量赋值形式
-  // 如: const onChooseSomeAddress = useCallback(...)
-  // 如: const mixedPay = useMemo(...)
-  // 如: const handleAnalysisAddr = useMemoizedFn(async (...) => {  (跨行)
-  // 关键：优先提取变量名并翻译，而不是使用 Hook 的通用标签
-  
-  // 先尝试匹配单行形式
   let hookVarMatch = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:React\.)?(use[A-Z]\w*)\s*\(/);
   if (hookVarMatch) {
     functionName = hookVarMatch[1];
@@ -319,7 +409,7 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     const prevLine = doc.lineAt(startLine - 1).text.trim();
     const twoLinesUp = startLine > 1 ? doc.lineAt(startLine - 2).text.trim() : '';
     
-    // 检查上一行是否有 Hook 赋值（如 const foo = useXxx( ）
+    // 检查上一行是否有 Hook 赋值
     const prevHookMatch = prevLine.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:React\.)?(use[A-Z]\w*)\s*\(/);
     if (prevHookMatch) {
       functionName = prevHookMatch[1];
@@ -336,12 +426,11 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
   
   // 如果找到了 Hook 变量赋值的函数名，直接翻译并返回
   if (functionName) {
-    const chineseName = translateFunctionNameToChineseSync(functionName);
+    const chineseName = translateFunctionNameToChineseSync(functionName, isVisible);
     return chineseName;
   }
 
   // 1. 直接的 Hook 调用（无变量赋值）
-  // 如: useEffect(() => {})
   const directHookMatch = s.match(/\b(?:React\.)?(useEffect|useState|useMemo|useCallback|useRef|useReducer|useLayoutEffect|useContext|useImperativeHandle|useDebugValue|useDeferredValue|useTransition|useId|useSyncExternalStore|useInsertionEffect)\s*\(/);
   if (directHookMatch) {
     const HOOK_LABELS: Record<string, string> = {
@@ -365,8 +454,7 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     return HOOK_LABELS[hook] || 'Hook 调用';
   }
 
-  // 2. 变量赋值 + 回调箭头函数作为参数：const foo = await bar(..., () => { ... })
-  //    或 const foo = bar(..., async () => { ... })
+  // 2. 变量赋值 + 回调箭头函数作为参数
   if (!functionName) {
     let m2 = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*[^;]*\([^)]*\)\s*=>/);
     if (m2) {
@@ -374,7 +462,7 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     }
   }
 
-  // 3. 命名 function: function foo(...) {
+  // 3. 命名 function
   if (!functionName) {
     let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
     if (m) {
@@ -382,10 +470,7 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     }
   }
 
-  // 4. const/let/var 声明的箭头函数（支持 export、泛型、返回类型）
-  // 如: export const aa = () => { 
-  // 如: const aa: Type = async <T>() : ReturnType =>
-  // 如: export const initOrderTemplate = (): API.Order.OrderTemplateInfo => {
+  // 4. const/let/var 声明的箭头函数
   if (!functionName) {
     let m = s.match(/\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/);
     if (m) {
@@ -393,7 +478,7 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     }
   }
 
-  // 5. 赋值的箭头函数（支持泛型）: aa = () => { / aa = async <T>() : ReturnType =>
+  // 5. 赋值的箭头函数
   if (!functionName) {
     let m = s.match(/\b([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/);
     if (m) {
@@ -401,7 +486,7 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     }
   }
 
-  // 6. 其他箭头函数（如回调）: [=:)] => { / 跨行
+  // 6. 其他箭头函数
   if (!functionName) {
     let m = s.match(/[=:\)]\s*=>/);
     if (m) {
@@ -409,7 +494,7 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     }
   }
 
-  // 7. async 方法: async method() { 或 method() {
+  // 7. async 方法
   if (!functionName) {
     let m = s.match(/^(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
     if (m) {
@@ -417,7 +502,7 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     }
   }
 
-  // 8. 对象方法: foo: function() { 或 { method() {
+  // 8. 对象方法
   if (!functionName) {
     let m = s.match(/[:,]\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
     if (m) {
@@ -425,12 +510,11 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
     }
   }
 
-  // 9. 检查多行函数定义（函数名在上一行）
+  // 9. 检查多行函数定义
   if (!functionName && startLine > 0) {
     const prevLine = doc.lineAt(startLine - 1).text.trim();
     const combined = `${prevLine} ${l1}`;
     
-    // 检查上一行是否有函数名
     let m = combined.match(/\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/);
     if (m) {
       functionName = m[1];
@@ -442,7 +526,7 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
   }
 
   // 使用同步版本的翻译（优先从缓存获取）
-  const chineseName = translateFunctionNameToChineseSync(functionName);
+  const chineseName = translateFunctionNameToChineseSync(functionName, isVisible);
   return chineseName;
 }
 
@@ -451,5 +535,6 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
  */
 export function clearTranslationCache(): void {
   translationCache.clear();
-  pendingRequests.clear();
+  translationQueue = [];
+  saveCacheToDisk();
 }
