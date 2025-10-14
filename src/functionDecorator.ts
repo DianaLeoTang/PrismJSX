@@ -274,9 +274,11 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   const commentPattern = /^\s*(\/\/|\*|\/\*)/;
   const controlFlowPattern = /\b(if|else|while|for|switch|catch|with|try)\s*\(/;
   const functionPattern = /\bfunction\b/;
-  const constArrowPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?\([^)]*\)\s*=>/;
-  const assignArrowPattern = /\b[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?\([^)]*\)\s*=>/;
+  const constArrowPattern = /\b(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::[^=>{]+)?\s*=>/;
+  const assignArrowPattern = /\b[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::[^=>{]+)?\s*=>/;
   const genericArrowPattern = /[=:\)]\s*=>/;
+  // 变量赋值 + 回调箭头函数作为参数的启发式检测
+  const assignedWithCallbackPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*[^;]*\([^)]*\)\s*=>/;
   const methodPattern = /^(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
   const objectMethodPattern = /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
   // Hook 调用模式：匹配任何 useXxx( 格式
@@ -304,7 +306,8 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
       methodPattern.test(s) ||
       objectMethodPattern.test(s) ||
       hookCallPattern.test(s) ||
-      hookAssignedPattern.test(s)
+      hookAssignedPattern.test(s) ||
+      assignedWithCallbackPattern.test(s)
     );
   };
 
