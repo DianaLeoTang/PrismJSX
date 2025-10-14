@@ -274,13 +274,14 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   const commentPattern = /^\s*(\/\/|\*|\/\*)/;
   const controlFlowPattern = /\b(if|else|while|for|switch|catch|with|try)\s*\(/;
   const functionPattern = /\bfunction\b/;
-  const constArrowPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/;
-  const assignArrowPattern = /\b[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>\s*\{/;
-  const genericArrowPattern = /[=:\)]\s*=>\s*\{/;
+  const constArrowPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?\([^)]*\)\s*=>/;
+  const assignArrowPattern = /\b[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?\([^)]*\)\s*=>/;
+  const genericArrowPattern = /[=:\)]\s*=>/;
   const methodPattern = /^(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
   const objectMethodPattern = /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
   // Hook 调用模式：匹配任何 useXxx( 格式
   const hookCallPattern = /\b(?:React\.)?use[A-Z]\w*\s*\(/;
+  const hookAssignedPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*(?:React\.)?use[A-Z]\w*\s*\(/;
 
   const maybeFuncStart = (line: string, lineIndex: number) => {
     const s = line.trim();
@@ -302,7 +303,8 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
       genericArrowPattern.test(s) ||
       methodPattern.test(s) ||
       objectMethodPattern.test(s) ||
-      hookCallPattern.test(s)
+      hookCallPattern.test(s) ||
+      hookAssignedPattern.test(s)
     );
   };
 
