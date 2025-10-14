@@ -4,6 +4,6 @@ const fs = require('fs');
 const apiKey = process.env.BUILTIN_API_KEY;
 
 // 替换占位符
-let content = fs.readFileSync('out/semanticTranslator.js', 'utf8');
+let content = fs.readFileSync('dist/semanticTranslator.js', 'utf8');
 content = content.replace('__BUILTIN_API_KEY_PLACEHOLDER__', apiKey);
-fs.writeFileSync('out/semanticTranslator.js', content);
+fs.writeFileSync('dist/semanticTranslator.js', content);
