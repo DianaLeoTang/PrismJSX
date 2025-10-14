@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { applyFunctionDecorations, disposeFunctionDecorations, refreshFunctionDecorations } from './functionDecorator';
 import { applyRegionDecorations, disposeRegionDecorations, getRegionSuppressionRanges, onRegionsChanged } from './regionDecorator';
-import { clearTranslationCache } from './semanticTranslator';
+import { clearTranslationCache, setTranslationCompleteCallback } from './semanticTranslator';
 
 // 防抖定时器
 let debounceTimer: NodeJS.Timeout | undefined;
@@ -12,15 +12,15 @@ const MAX_FILE_LINES = 10000;
 // 上次处理的文档版本，用于避免重复处理
 let lastProcessedVersion = new Map<string, number>();
 
-// 应用所有装饰
-function applyAll(editor: vscode.TextEditor) {
+// 应用所有装饰（force=true 时无视文档版本缓存，强制刷新）
+function applyAll(editor: vscode.TextEditor, force = false) {
   if (!editor || editor.document.isClosed) return;
   
   const docUri = editor.document.uri.toString();
   const docVersion = editor.document.version;
   
   // 检查是否已经处理过这个版本
-  if (lastProcessedVersion.get(docUri) === docVersion) {
+  if (!force && lastProcessedVersion.get(docUri) === docVersion) {
     return;
   }
   
@@ -47,19 +47,27 @@ function applyAll(editor: vscode.TextEditor) {
   }
 }
 
-// 防抖版本的应用函数
-function applyAllDebounced(editor: vscode.TextEditor) {
+// 防抖版本的应用函数（支持强制刷新）
+function applyAllDebounced(editor: vscode.TextEditor, force = false) {
   if (debounceTimer) {
     clearTimeout(debounceTimer);
   }
   
   debounceTimer = setTimeout(() => {
-    applyAll(editor);
+    applyAll(editor, force);
   }, 150); // 150ms 防抖延迟
 }
 
 // 激活扩展
 export function activate(context: vscode.ExtensionContext) {
+  // 设置翻译完成回调：翻译完成后刷新界面
+  setTranslationCompleteCallback(() => {
+    const ed = vscode.window.activeTextEditor;
+    if (ed) {
+      applyAllDebounced(ed, true); // 强制刷新，确保显示最新翻译
+    }
+  });
+
   // 首次启动对激活编辑器应用
   if (vscode.window.activeTextEditor) {
     applyAll(vscode.window.activeTextEditor);
@@ -96,7 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
       const ed = vscode.window.activeTextEditor;
       if (ed) {
         refreshFunctionDecorations();
-        applyAll(ed);
+        applyAll(ed, true); // 强制刷新
       }
     })
   );
@@ -108,7 +116,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage('翻译缓存已清空');
       const ed = vscode.window.activeTextEditor;
       if (ed) {
-        applyAll(ed);
+        applyAll(ed, true); // 强制刷新
       }
     })
   );
