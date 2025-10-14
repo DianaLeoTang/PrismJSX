@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { onExclusionRanges } from './exclusionBus';
-import { extractFunctionLabel, translateFunctionNameToChinese, translateFunctionNameToChineseSync } from './semanticTranslator';
+import { extractFunctionLabel, translateFunctionNameToChinese, translateFunctionNameToChineseSync,TranslationPriority } from './semanticTranslator';
 import { COLOR_SCHEMES_LIGHT, COLOR_SCHEMES_DARK } from './colorSchemes';
 
 let suppressRanges: vscode.Range[] = [];
@@ -559,73 +559,73 @@ async function preloadTranslations(doc: vscode.TextDocument, ranges: vscode.Rang
 }
 
 /** 渲染函数左侧条（不同函数不同颜色；仅左侧，不涂背景） */
-export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vscode.Range[]) {
-  const doc = editor.document;
+// export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vscode.Range[]) {
+//   const doc = editor.document;
 
-  // 性能检查：跳过过大的文件
-  if (doc.lineCount > 10000) return;
+//   // 性能检查：跳过过大的文件
+//   if (doc.lineCount > 10000) return;
 
-  const all = computeFunctionRanges(doc);
-  const visible = filterOutSuppressed(all, suppress);
-  const codeOnly = keepCodeOnly(doc, visible);
+//   const all = computeFunctionRanges(doc);
+//   const visible = filterOutSuppressed(all, suppress);
+//   const codeOnly = keepCodeOnly(doc, visible);
 
-  // 在后台预加载翻译（不阻塞渲染）
-  preloadTranslations(doc, all).catch(err => {
-    console.debug('预加载翻译失败', err);
-  });
+//   // 在后台预加载翻译（不阻塞渲染）
+//   preloadTranslations(doc, all).catch(err => {
+//     console.debug('预加载翻译失败', err);
+//   });
 
-  // 清空旧的
-  stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
+//   // 清空旧的
+//   stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
 
-  // 分配颜色并设置装饰
-  const groups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
-  const colorScheme = getColorScheme();
+//   // 分配颜色并设置装饰
+//   const groups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
+//   const colorScheme = getColorScheme();
   
-  codeOnly.forEach((r) => {
-    const functionType = getFunctionType(doc, r.start.line);
+//   codeOnly.forEach((r) => {
+//     const functionType = getFunctionType(doc, r.start.line);
     
-    // 跳过 JSX 内联函数和数组回调函数
-    if (functionType === 'jsx-inline' || functionType === 'array-callback') {
-      return;
-    }
+//     // 跳过 JSX 内联函数和数组回调函数
+//     if (functionType === 'jsx-inline' || functionType === 'array-callback') {
+//       return;
+//     }
     
-    const color = colorScheme[functionType] || colorScheme['default'];
-    const dt = getLeftStripeDecoration(color);
-    if (!groups.has(dt)) groups.set(dt, []);
-    groups.get(dt)!.push(r);
-  });
+//     const color = colorScheme[functionType] || colorScheme['default'];
+//     const dt = getLeftStripeDecoration(color);
+//     if (!groups.has(dt)) groups.set(dt, []);
+//     groups.get(dt)!.push(r);
+//   });
 
-  groups.forEach((ranges, dt) => editor.setDecorations(dt, ranges));
+//   groups.forEach((ranges, dt) => editor.setDecorations(dt, ranges));
 
-  // 中文语义化注释（受配置控制）
-  const config = vscode.workspace.getConfiguration('codehue');
-  const enableSemanticComments = config.get<boolean>('enableSemanticComments', true);
+//   // 中文语义化注释（受配置控制）
+//   const config = vscode.workspace.getConfiguration('codehue');
+//   const enableSemanticComments = config.get<boolean>('enableSemanticComments', true);
   
-  const annotations: vscode.DecorationOptions[] = [];
+//   const annotations: vscode.DecorationOptions[] = [];
 
-  if (enableSemanticComments) {
-    for (const r of all) {
-      const line = r.start.line;
-      const chineseLabel = extractFunctionLabel(doc, line);
+//   if (enableSemanticComments) {
+//     for (const r of all) {
+//       const line = r.start.line;
+//       const chineseLabel = extractFunctionLabel(doc, line);
       
-      const targetLine = line > 0 ? line - 1 : line;
-      const targetPos = doc.lineAt(targetLine).range.end;
-      annotations.push({
-        range: new vscode.Range(targetPos, targetPos),
-        renderOptions: { after: { contentText: ` // ${chineseLabel}` } }
-      });
-    }
+//       const targetLine = line > 0 ? line - 1 : line;
+//       const targetPos = doc.lineAt(targetLine).range.end;
+//       annotations.push({
+//         range: new vscode.Range(targetPos, targetPos),
+//         renderOptions: { after: { contentText: ` // ${chineseLabel}` } }
+//       });
+//     }
 
-    // 整段被注释掉的函数
-    const commented = findCommentedOutFunctionNotes(doc);
-    const usedLines = new Set(annotations.map(a => a.range.start.line));
-    for (const c of commented) {
-      if (!usedLines.has(c.range.start.line)) annotations.push(c);
-    }
-  }
+//     // 整段被注释掉的函数
+//     const commented = findCommentedOutFunctionNotes(doc);
+//     const usedLines = new Set(annotations.map(a => a.range.start.line));
+//     for (const c of commented) {
+//       if (!usedLines.has(c.range.start.line)) annotations.push(c);
+//     }
+//   }
 
-  editor.setDecorations(annotationType, annotations);
-}
+//   editor.setDecorations(annotationType, annotations);
+// }
 
 export function refreshFunctionDecorations() {
   // 留空，真正刷新在 extension.ts 里通过 applyAll 触发
@@ -699,4 +699,190 @@ function findCommentedOutFunctionNotes(doc: vscode.TextDocument): vscode.Decorat
     }
   }
   return notes;
+}
+
+/**
+ * 判断某个范围是否在可见区域内
+ */
+function isRangeVisible(editor: vscode.TextEditor, range: vscode.Range): boolean {
+  return editor.visibleRanges.some(visibleRange => 
+    range.start.line >= visibleRange.start.line && 
+    range.end.line <= visibleRange.end.line
+  );
+}
+
+/**
+ * 判断某个范围是否部分可见
+ */
+function isRangePartiallyVisible(editor: vscode.TextEditor, range: vscode.Range): boolean {
+  return editor.visibleRanges.some(visibleRange => 
+    !(range.end.line < visibleRange.start.line || range.start.line > visibleRange.end.line)
+  );
+}
+
+/**
+ * 预加载所有函数的翻译（按优先级分层）
+ */
+async function preloadTranslationsWithPriority(
+  editor: vscode.TextEditor,
+  doc: vscode.TextDocument, 
+  ranges: vscode.Range[]
+): Promise<void> {
+  const config = vscode.workspace.getConfiguration('codehue');
+  const enableAI = config.get<boolean>('enableAITranslation', true);
+
+  if (!enableAI) {
+    return;
+  }
+
+  // 判断是否是当前活动编辑器
+  const isActiveEditor = vscode.window.activeTextEditor === editor;
+  const docUri = doc.uri.toString();
+
+  // 按优先级分类函数
+  const visibleFunctions: Array<{ name: string; line: number }> = [];
+  const invisibleFunctions: Array<{ name: string; line: number }> = [];
+  const otherFileFunctions: Array<{ name: string; line: number }> = [];
+
+  for (const r of ranges) {
+    const line = r.start.line;
+    const l1 = doc.lineAt(line).text.trim();
+    const l2 = line + 1 < doc.lineCount ? doc.lineAt(line + 1).text.trim() : '';
+    const s = `${l1} ${l2}`;
+
+    const functionName = extractFunctionName(s);
+    
+    if (functionName && functionName !== 'anonymous') {
+      if (isActiveEditor) {
+        // 判断是否在可见区域
+        if (isRangePartiallyVisible(editor, r)) {
+          visibleFunctions.push({ name: functionName, line });
+        } else {
+          invisibleFunctions.push({ name: functionName, line });
+        }
+      } else {
+        otherFileFunctions.push({ name: functionName, line });
+      }
+    }
+  }
+
+  console.log(`📊 翻译队列统计 [${doc.fileName}]:`);
+  console.log(`  - 可见区域: ${visibleFunctions.length} 个函数`);
+  console.log(`  - 不可见区域: ${invisibleFunctions.length} 个函数`);
+  console.log(`  - 其他文件: ${otherFileFunctions.length} 个函数`);
+
+  // 按优先级依次加载
+  const allPromises: Promise<any>[] = [];
+
+  // 1. 最高优先级：可见区域
+  visibleFunctions.forEach(({ name, line }) => {
+    allPromises.push(
+      translateFunctionNameToChinese(name, TranslationPriority.VISIBLE_CURRENT_FILE, docUri)
+        .catch(err => console.debug(`翻译失败 [可见]: ${name}`, err))
+    );
+  });
+
+  // 2. 中优先级：当前文件不可见区域
+  invisibleFunctions.forEach(({ name, line }) => {
+    allPromises.push(
+      translateFunctionNameToChinese(name, TranslationPriority.INVISIBLE_CURRENT_FILE, docUri)
+        .catch(err => console.debug(`翻译失败 [不可见]: ${name}`, err))
+    );
+  });
+
+  // 3. 低优先级：其他文件
+  otherFileFunctions.forEach(({ name, line }) => {
+    allPromises.push(
+      translateFunctionNameToChinese(name, TranslationPriority.OTHER_OPEN_FILES, docUri)
+        .catch(err => console.debug(`翻译失败 [其他]: ${name}`, err))
+    );
+  });
+
+  // 不等待完成，让翻译在后台异步进行
+  Promise.allSettled(allPromises).then(() => {
+    console.log(`✓ 完成翻译请求提交 [${doc.fileName}]`);
+  });
+}
+
+/** 渲染函数左侧条（不同函数不同颜色；仅左侧，不涂背景） */
+export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vscode.Range[]) {
+  const doc = editor.document;
+
+  // 性能检查：跳过过大的文件
+  if (doc.lineCount > 10000) return;
+
+  const all = computeFunctionRanges(doc);
+  const visible = filterOutSuppressed(all, suppress);
+  const codeOnly = keepCodeOnly(doc, visible);
+
+  // 🔥 关键修改：使用带优先级的预加载函数
+  preloadTranslationsWithPriority(editor, doc, all).catch(err => {
+    console.debug('预加载翻译失败', err);
+  });
+
+  // 清空旧的
+  stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
+
+  // 分配颜色并设置装饰
+  const groups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
+  const colorScheme = getColorScheme();
+  
+  codeOnly.forEach((r) => {
+    const functionType = getFunctionType(doc, r.start.line);
+    
+    // 跳过 JSX 内联函数和数组回调函数
+    if (functionType === 'jsx-inline' || functionType === 'array-callback') {
+      return;
+    }
+    
+    const color = colorScheme[functionType] || colorScheme['default'];
+    const dt = getLeftStripeDecoration(color);
+    if (!groups.has(dt)) groups.set(dt, []);
+    groups.get(dt)!.push(r);
+  });
+
+  groups.forEach((ranges, dt) => editor.setDecorations(dt, ranges));
+
+  // 中文语义化注释（受配置控制）
+  const config = vscode.workspace.getConfiguration('codehue');
+  const enableSemanticComments = config.get<boolean>('enableSemanticComments', true);
+  
+  const annotations: vscode.DecorationOptions[] = [];
+
+  if (enableSemanticComments) {
+    // 判断是否是当前活动编辑器
+    const isActiveEditor = vscode.window.activeTextEditor === editor;
+
+    for (const r of all) {
+      const line = r.start.line;
+      
+      // 🔥 关键修改：根据可见性传递优先级
+      let priority = TranslationPriority.OTHER_OPEN_FILES;
+      if (isActiveEditor) {
+        if (isRangePartiallyVisible(editor, r)) {
+          priority = TranslationPriority.VISIBLE_CURRENT_FILE;
+        } else {
+          priority = TranslationPriority.INVISIBLE_CURRENT_FILE;
+        }
+      }
+      
+      const chineseLabel = extractFunctionLabel(doc, line, priority);
+      
+      const targetLine = line > 0 ? line - 1 : line;
+      const targetPos = doc.lineAt(targetLine).range.end;
+      annotations.push({
+        range: new vscode.Range(targetPos, targetPos),
+        renderOptions: { after: { contentText: ` // ${chineseLabel}` } }
+      });
+    }
+
+    // 整段被注释掉的函数
+    const commented = findCommentedOutFunctionNotes(doc);
+    const usedLines = new Set(annotations.map(a => a.range.start.line));
+    for (const c of commented) {
+      if (!usedLines.has(c.range.start.line)) annotations.push(c);
+    }
+  }
+
+  editor.setDecorations(annotationType, annotations);
 }
