@@ -29,18 +29,22 @@ npm install -g @vscode/vsce
 
 ```
 PrismJSX/
-├─ src/                    # TypeScript 源代码
-│  ├─ extension.ts         # 扩展主入口
-│  ├─ functionDecorator.ts # 函数装饰逻辑
-│  ├─ regionDecorator.ts   # Region 区域处理
-│  └─ exclusionBus.ts      # 排除范围协调
-├─ dist/                   # 编译后的 JavaScript
-├─ images/                 # 图标资源
+├─ src/                      # TypeScript 源代码
+│  ├─ extension.ts           # 扩展主入口
+│  ├─ functionDecorator.ts   # 函数装饰逻辑
+│  ├─ regionDecorator.ts     # Region 区域处理
+│  ├─ semanticTranslator.ts  # AI翻译和语义转换
+│  ├─ colorSchemes.ts        # 颜色方案定义
+│  └─ exclusionBus.ts        # 排除范围协调
+├─ dist/                     # 编译后的 JavaScript
+├─ images/                   # 图标资源
 ├─ .vscode/               
-│  └─ launch.json          # 调试配置
-├─ package.json            # 扩展清单
-├─ tsconfig.json           # TypeScript 配置
-└─ CHANGELOG.md            # 版本更新日志
+│  └─ launch.json            # 调试配置
+├─ package.json              # 扩展清单
+├─ tsconfig.json             # TypeScript 配置
+├─ AI_SETUP.md               # AI模型配置指南
+├─ DEVELOPMENT.md            # 开发指南（本文档）
+└─ CHANGELOG.md              # 版本更新日志
 ```
 
 ---
@@ -126,6 +130,33 @@ npm run watch
 1. 打开 `.ts`、`.tsx`、`.js` 或 `.jsx` 文件
 2. 查看彩色装饰和语义化注释
 3. 如果没显示，执行命令：`CodeHue: Refresh Decorations`
+
+#### 5. 调试 AI 翻译功能
+测试私有云 AI 模型集成：
+
+1. **配置 AI 模型**（在扩展开发宿主的设置中）：
+   ```json
+   {
+     "codehue.translationMode": "ai",
+     "codehue.aiModelApiKey": "your-test-api-key",
+     "codehue.aiModelBaseUrl": "http://llm-model-hub-proxy.sit.sf-express.com",
+     "codehue.aiModelName": "aiplat/qwen2.5-72b-instruct"
+   }
+   ```
+
+2. **查看 AI 调用日志**：
+   - 打开调试控制台（Debug Console）
+   - AI 调用成功/失败的日志会显示在这里
+   - 错误信息格式：`AI模型调用失败: {error.message}`
+
+3. **测试降级机制**：
+   - 故意配置错误的 API Key
+   - 观察是否正确降级到手动映射模式
+   - 控制台应显示：`AI 翻译失败，降级使用手动映射`
+
+4. **清空翻译缓存**：
+   - 执行命令：`CodeHue: Clear Translation Cache`
+   - 重新触发 AI 翻译
 
 ### 代码编译
 
@@ -497,6 +528,41 @@ npm run compile
 1. 检查 `package.json` 中的 `activationEvents`
 2. 确保 `main` 指向正确的入口文件：`./dist/extension.js`
 3. 查看扩展开发宿主的输出面板（Output）
+
+### 9. AI 翻译不工作？
+
+**检查清单**：
+
+1. **API Key 配置**：
+   ```bash
+   # 检查配置是否正确
+   # 在扩展开发宿主中打开设置，搜索 codehue.aiModelApiKey
+   ```
+
+2. **网络连接**：
+   - 确保可以访问配置的 AI 服务地址
+   - 测试环境：`http://llm-model-hub-proxy.sit.sf-express.com`
+   - 办公网环境：`http://llm-model-hub-apis.sf-express.com`
+
+3. **查看错误日志**：
+   - 打开调试控制台（Debug Console）
+   - 查找包含 "AI模型调用失败" 的错误信息
+   - 常见错误：
+     - `AI模型 API Key 未配置` → 未设置 API Key
+     - `timeout of 5000ms exceeded` → 网络超时
+     - `401 Unauthorized` → API Key 无效
+
+4. **测试降级模式**：
+   ```json
+   {
+     "codehue.translationMode": "manual"
+   }
+   ```
+   切换到手动模式，确认基本功能正常
+
+5. **清空缓存重试**：
+   - 执行命令：`CodeHue: Clear Translation Cache`
+   - 刷新装饰：`CodeHue: Refresh Decorations`
 
 ---
 
