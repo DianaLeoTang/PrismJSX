@@ -132,11 +132,12 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package",
     "release": "standard-version",
     "release:patch": "standard-version --release-as patch",
     "release:minor": "standard-version --release-as minor",
-    "release:major": "standard-version --release-as major"
+    "release:major": "standard-version --release-as major",
+    "build": "tsc && node scripts/build.js",
+    "package": "npm run build && vsce package"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
