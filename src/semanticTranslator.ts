@@ -7,18 +7,14 @@ import * as path from 'path';
 
 /**
  * 从 .env 文件读取 API Key
- * 开发时使用 .env（不提交到 Git）
- * 发布时会被构建脚本替换为硬编码的值
  */
 function getBuiltinApiKey(): string {
-  // 如果是编译后的代码，这里会被构建脚本替换为真实的 token
   const COMPILED_KEY = '__BUILTIN_API_KEY_PLACEHOLDER__';
   
   if (COMPILED_KEY !== '__BUILTIN_API_KEY_PLACEHOLDER__') {
     return COMPILED_KEY;
   }
   
-  // 开发环境：从 .env 文件读取
   try {
     const envPath = path.join(__dirname, '..', '.env');
     if (fs.existsSync(envPath)) {
@@ -36,26 +32,23 @@ function getBuiltinApiKey(): string {
 }
 
 /**
- * 获取 API Key（优先顺序：VSCode 配置 → 系统环境变量 → 内置）
+ * 获取 API Key
  */
 function getApiKey(): string {
-  // 1. 优先从 VSCode 配置读取（给高级用户自定义的选项）
   const config = vscode.workspace.getConfiguration('codehue');
   const fromConfig = (config.get<string>('aiApiKey', '') || '').trim();
   if (fromConfig) return fromConfig;
   
-  // 2. 从系统环境变量读取
   const fromEnv = (process.env.CODEHUE_API_KEY || '').trim();
   if (fromEnv) return fromEnv;
   
-  // 3. 使用内置 API Key（开箱即用）
   return getBuiltinApiKey();
 }
 
-// 翻译缓存（避免重复调用 API）
+// 翻译缓存
 const translationCache = new Map<string, string>();
 
-// 持久化缓存到本地存储（跨会话保留）
+// 持久化缓存
 let globalStorageUri: vscode.Uri | undefined;
 
 /**
@@ -81,9 +74,9 @@ async function loadCacheFromDisk(): Promise<void> {
       translationCache.set(key, value as string);
     });
     
-    console.log(`加载了 ${translationCache.size} 条翻译缓存`);
+    console.log(`✓ 加载了 ${translationCache.size} 条翻译缓存`);
   } catch (error) {
-    // 缓存文件不存在或损坏，忽略
+    // 缓存文件不存在，忽略
   }
 }
 
@@ -103,27 +96,44 @@ async function saveCacheToDisk(): Promise<void> {
   }
 }
 
+// 翻译优先级枚举
+export enum TranslationPriority {
+  VISIBLE_CURRENT_FILE = 0,      // 最高优先级：当前文件可见区域
+  INVISIBLE_CURRENT_FILE = 1,    // 中优先级：当前文件不可见区域
+  OTHER_OPEN_FILES = 2            // 低优先级：其他打开的文件
+}
+
 // 批量翻译队列
 interface TranslationTask {
   functionName: string;
   resolve: (value: string) => void;
   reject: (reason: any) => void;
-  priority: number; // 0=高优先级（可见区域），1=普通
+  priority: TranslationPriority;
+  documentUri?: string; // 用于追踪来自哪个文件
+  timestamp: number;
 }
 
 let translationQueue: TranslationTask[] = [];
 let processingBatch = false;
 
-// 并发控制
-const MAX_CONCURRENT_REQUESTS = 2; // 降低并发数
+// 严格的并发和速率控制
+const MAX_CONCURRENT_REQUESTS = 1;
 let activeRequests = 0;
 let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 1000; // 每次请求间隔至少1000ms（1秒）
+const MIN_REQUEST_INTERVAL = 3000; // 3秒间隔
+const BATCH_SIZE = 10;
+const MAX_RETRIES = 2;
+let consecutiveErrors = 0;
+const MAX_CONSECUTIVE_ERRORS = 3;
+
+// 全局暂停开关
+let translationPaused = false;
+let pauseUntil = 0;
 
 /**
- * 批量翻译函数（一次API调用翻译多个函数名）
+ * 批量翻译函数
  */
-async function translateBatch(functionNames: string[]): Promise<Map<string, string>> {
+async function translateBatch(functionNames: string[], retryCount: number = 0): Promise<Map<string, string>> {
   const config = vscode.workspace.getConfiguration('codehue');
   const baseUrl = config.get<string>('aiModelBaseUrl', 'http://llm-model-hub-apis.sf-express.com');
   const model = config.get<string>('aiModelName', 'aiplat/qwen2.5-72b-instruct');
@@ -133,17 +143,29 @@ async function translateBatch(functionNames: string[]): Promise<Map<string, stri
     throw new Error('未配置 API Key');
   }
 
-  // 等待请求间隔
+  // 检查是否暂停
+  if (translationPaused) {
+    const now = Date.now();
+    if (now < pauseUntil) {
+      const remainingSeconds = Math.ceil((pauseUntil - now) / 1000);
+      throw new Error(`翻译服务暂停中，还需等待 ${remainingSeconds} 秒`);
+    } else {
+      translationPaused = false;
+      consecutiveErrors = 0;
+      console.log('✓ 翻译服务恢复');
+    }
+  }
+
+  // 严格的请求间隔控制
   const now = Date.now();
   const timeSinceLastRequest = now - lastRequestTime;
   if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-    await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest));
+    const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+    await new Promise(resolve => setTimeout(resolve, waitTime));
   }
   lastRequestTime = Date.now();
 
   const url = `${baseUrl}/v1/chat/completions`;
-  
-  // 构建批量翻译提示词
   const functionList = functionNames.map((name, idx) => `${idx + 1}. ${name}`).join('\n');
   
   try {
@@ -162,7 +184,7 @@ async function translateBatch(functionNames: string[]): Promise<Map<string, stri
           }
         ],
         temperature: 0.3,
-        max_tokens: 200,
+        max_tokens: 300,
         stream: false
       },
       {
@@ -174,12 +196,12 @@ async function translateBatch(functionNames: string[]): Promise<Map<string, stri
         httpAgent: new (require('http').Agent)({ 
           keepAlive: true,
           keepAliveMsecs: 30000,
-          maxSockets: MAX_CONCURRENT_REQUESTS
+          maxSockets: 1
         }),
         httpsAgent: new (require('https').Agent)({ 
           keepAlive: true,
           keepAliveMsecs: 30000,
-          maxSockets: MAX_CONCURRENT_REQUESTS
+          maxSockets: 1
         })
       }
     );
@@ -189,10 +211,8 @@ async function translateBatch(functionNames: string[]): Promise<Map<string, stri
     
     const results = new Map<string, string>();
     
-    // 解析批量翻译结果
     lines.forEach((line: string, idx: number) => {
       if (idx < functionNames.length) {
-        // 尝试解析 "序号. 翻译" 格式
         const match = line.match(/^\d+\.\s*(.+)$/);
         const translation = match ? match[1].trim() : line.trim();
         
@@ -206,29 +226,55 @@ async function translateBatch(functionNames: string[]): Promise<Map<string, stri
       }
     });
     
-    // 如果某些函数没有翻译结果，使用原函数名
     functionNames.forEach(name => {
       if (!results.has(name)) {
         results.set(name, name);
       }
     });
     
+    consecutiveErrors = 0;
+    console.log(`✓ 成功翻译 ${functionNames.length} 个函数名`);
+    
     return results;
   } catch (error: any) {
-    console.error(`批量翻译失败: ${error.message}`);
+    consecutiveErrors++;
     
-    // 如果是 429 错误，等待更长时间
     if (error.response?.status === 429) {
-      console.warn('触发速率限制，等待10秒后重试...');
-      await new Promise(resolve => setTimeout(resolve, 10000));
+      const waitTime = 30000;
+      console.warn(`⚠ 触发速率限制（429），暂停翻译 ${waitTime / 1000} 秒`);
+      
+      translationPaused = true;
+      pauseUntil = Date.now() + waitTime;
+      
+      if (retryCount < MAX_RETRIES) {
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        translationPaused = false;
+        return translateBatch(functionNames, retryCount + 1);
+      }
     }
     
+    if (error.code === 'ECONNRESET' || error.message?.includes('socket hang up')) {
+      if (retryCount < MAX_RETRIES) {
+        const waitTime = 5000 * Math.pow(2, retryCount);
+        console.log(`⚠ 网络错误，${waitTime / 1000} 秒后重试...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return translateBatch(functionNames, retryCount + 1);
+      }
+    }
+    
+    if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+      translationPaused = true;
+      pauseUntil = Date.now() + 60000;
+      console.error(`✗ 连续失败 ${consecutiveErrors} 次，翻译服务暂停1分钟`);
+    }
+    
+    console.error(`✗ 批量翻译失败（重试 ${retryCount}/${MAX_RETRIES}）: ${error.message}`);
     throw error;
   }
 }
 
 /**
- * 处理翻译队列（批量处理）
+ * 处理翻译队列 - 按优先级分层处理
  */
 async function processBatchQueue(): Promise<void> {
   if (processingBatch || translationQueue.length === 0) {
@@ -239,26 +285,53 @@ async function processBatchQueue(): Promise<void> {
 
   try {
     while (translationQueue.length > 0) {
-      // 等待并发槽位
-      while (activeRequests >= MAX_CONCURRENT_REQUESTS) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      // 检查是否暂停
+      if (translationPaused && Date.now() < pauseUntil) {
+        console.log('⏸ 翻译服务暂停中...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        continue;
       }
 
-      // 按优先级排序
-      translationQueue.sort((a, b) => a.priority - b.priority);
+      // 等待并发槽位
+      while (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
-      // 取出一批待翻译的函数（最多5个一批，避免单次请求过大）
-      const batchSize = Math.min(5, translationQueue.length);
+      // 清理过期任务（超过60秒的任务）
+      const now = Date.now();
+      translationQueue = translationQueue.filter(task => now - task.timestamp < 60000);
+
+      if (translationQueue.length === 0) {
+        break;
+      }
+
+      // 按优先级排序（0 > 1 > 2）
+      translationQueue.sort((a, b) => {
+        if (a.priority !== b.priority) {
+          return a.priority - b.priority;
+        }
+        return a.timestamp - b.timestamp;
+      });
+
+      // 获取当前最高优先级
+      const highestPriority = translationQueue[0].priority;
+      
+      // 只处理最高优先级的任务
+      const samePriorityTasks = translationQueue.filter(task => task.priority === highestPriority);
+      const batchSize = Math.min(BATCH_SIZE, samePriorityTasks.length);
       const batch = translationQueue.splice(0, batchSize);
       
       const functionNames = batch.map(task => task.functionName);
+      
+      // 日志显示正在处理的优先级
+      const priorityName = ['当前文件可见区域', '当前文件其他区域', '其他打开文件'][highestPriority];
+      console.log(`→ 正在翻译【${priorityName}】的 ${functionNames.length} 个函数名...`);
       
       activeRequests++;
 
       try {
         const results = await translateBatch(functionNames);
         
-        // 更新缓存并返回结果
         batch.forEach(task => {
           const translation = results.get(task.functionName) || task.functionName;
           translationCache.set(task.functionName, translation);
@@ -269,10 +342,14 @@ async function processBatchQueue(): Promise<void> {
         if (translationCache.size % 20 === 0) {
           saveCacheToDisk();
         }
+        
+        // 优先级0（可见区域）完成后立即触发刷新
+        if (highestPriority === TranslationPriority.VISIBLE_CURRENT_FILE && onTranslationComplete) {
+          onTranslationComplete();
+        }
+        
       } catch (error) {
-        // 批量失败时，回退到单个翻译或直接返回原函数名
         batch.forEach(task => {
-          console.warn(`翻译失败，保留原函数名: ${task.functionName}`);
           translationCache.set(task.functionName, task.functionName);
           task.resolve(task.functionName);
         });
@@ -280,45 +357,82 @@ async function processBatchQueue(): Promise<void> {
         activeRequests--;
       }
 
-      // 批次间增加延迟，避免触发速率限制
+      // 批次间延迟
       if (translationQueue.length > 0) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 如果下一批是低优先级，增加延迟
+        const nextPriority = translationQueue[0]?.priority;
+        if (nextPriority > highestPriority) {
+          console.log(`⏱ 切换到【${['当前文件可见区域', '当前文件其他区域', '其他打开文件'][nextPriority]}】，等待2秒...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
     }
   } finally {
     processingBatch = false;
-    
-    // 最终保存缓存
     await saveCacheToDisk();
+    console.log('✓ 翻译队列处理完成');
   }
 }
 
 /**
- * 使用私有云AI模型翻译函数名（队列化处理）
+ * 队列化翻译请求
  */
-async function translateWithAI(functionName: string, priority: number = 1): Promise<string> {
+async function translateWithAI(
+  functionName: string, 
+  priority: TranslationPriority = TranslationPriority.OTHER_OPEN_FILES,
+  documentUri?: string
+): Promise<string> {
   return new Promise((resolve, reject) => {
+    // 检查队列中是否已有相同请求
+    const existing = translationQueue.find(task => task.functionName === functionName);
+    if (existing) {
+      // 如果新请求优先级更高，更新优先级
+      if (priority < existing.priority) {
+        existing.priority = priority;
+        existing.timestamp = Date.now(); // 更新时间戳
+        console.log(`↑ 提升 "${functionName}" 的翻译优先级到 ${priority}`);
+      }
+      return; // 已在队列中
+    }
+
     translationQueue.push({
       functionName,
       resolve,
       reject,
-      priority
+      priority,
+      documentUri,
+      timestamp: Date.now()
     });
 
-    // 触发批量处理
+    // 限制队列长度
+    if (translationQueue.length > 200) {
+      console.warn('⚠ 翻译队列过长，清理低优先级任务');
+      translationQueue = translationQueue
+        .sort((a, b) => {
+          if (a.priority !== b.priority) return a.priority - b.priority;
+          return a.timestamp - b.timestamp;
+        })
+        .slice(0, 100);
+    }
+
     processBatchQueue();
   });
 }
 
 /**
- * 将函数名转换为中文语义
+ * 异步翻译函数
  */
-export async function translateFunctionNameToChinese(functionName: string, priority: number = 1): Promise<string> {
+export async function translateFunctionNameToChinese(
+  functionName: string, 
+  priority: TranslationPriority = TranslationPriority.OTHER_OPEN_FILES,
+  documentUri?: string
+): Promise<string> {
   if (!functionName || functionName === 'anonymous') {
     return '匿名函数';
   }
 
-  // 检查缓存
   const cached = translationCache.get(functionName);
   if (cached) {
     return cached;
@@ -332,34 +446,32 @@ export async function translateFunctionNameToChinese(functionName: string, prior
   }
 
   try {
-    const translation = await translateWithAI(functionName, priority);
+    const translation = await translateWithAI(functionName, priority, documentUri);
     return translation;
   } catch (error) {
-    console.warn(`AI 翻译失败，保留原函数名: ${error}`);
     return functionName;
   }
 }
 
-// 回调函数：翻译完成后刷新界面
+// 回调函数
 let onTranslationComplete: (() => void) | undefined;
 
-/**
- * 设置翻译完成回调（用于刷新界面）
- */
 export function setTranslationCompleteCallback(callback: () => void): void {
   onTranslationComplete = callback;
 }
 
 /**
- * 同步版本的翻译函数（用于向后兼容）
- * 如果启用 AI，会先尝试从缓存获取，否则返回原函数名并在后台异步翻译
+ * 同步翻译函数 - 支持优先级参数
  */
-export function translateFunctionNameToChineseSync(functionName: string, isVisible: boolean = false): string {
+export function translateFunctionNameToChineseSync(
+  functionName: string, 
+  priority: TranslationPriority = TranslationPriority.OTHER_OPEN_FILES,
+  documentUri?: string
+): string {
   if (!functionName || functionName === 'anonymous') {
     return '匿名函数';
   }
 
-  // 先检查缓存
   const cached = translationCache.get(functionName);
   if (cached) {
     return cached;
@@ -368,69 +480,54 @@ export function translateFunctionNameToChineseSync(functionName: string, isVisib
   const config = vscode.workspace.getConfiguration('codehue');
   const enableAI = config.get<boolean>('enableAITranslation', true);
 
-  // 如果启用 AI，在后台异步获取翻译
-  if (enableAI) {
-    // 可见区域的函数设置高优先级
-    const priority = isVisible ? 0 : 1;
-    
-    translateFunctionNameToChinese(functionName, priority).then(result => {
-      // 翻译完成后触发界面刷新
-      if (onTranslationComplete) {
+  if (enableAI && !translationPaused) {
+    translateFunctionNameToChinese(functionName, priority, documentUri).then(result => {
+      if (priority === TranslationPriority.VISIBLE_CURRENT_FILE && onTranslationComplete) {
         onTranslationComplete();
       }
-    }).catch(() => {
-      // 错误已在 async 函数中处理
-    });
+    }).catch(() => {});
   }
 
-  // 立即返回原函数名（等待异步AI翻译完成后会自动更新）
   return functionName;
 }
 
 /**
- * 改进的 extractFunctionLabel - 返回中文语义
- * 与 computeFunctionRanges 保持一致的检测逻辑
+ * 提取函数标签 - 支持优先级参数
  */
-export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number, isVisible: boolean = false): string {
+export function extractFunctionLabel(
+  doc: vscode.TextDocument, 
+  startLine: number, 
+  priority: TranslationPriority = TranslationPriority.OTHER_OPEN_FILES
+): string {
   const l1 = doc.lineAt(startLine).text.trim();
   const l2 = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text.trim() : '';
   const s = `${l1} ${l2}`;
 
   let functionName = '';
 
-  // 0. 优先处理 React Hook 的变量赋值形式
+  // Hook 变量赋值
   let hookVarMatch = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:React\.)?(use[A-Z]\w*)\s*\(/);
   if (hookVarMatch) {
     functionName = hookVarMatch[1];
   }
   
-  // 如果没匹配到，尝试跨行匹配（函数名在上一行）
   if (!functionName && startLine > 0) {
     const prevLine = doc.lineAt(startLine - 1).text.trim();
-    const twoLinesUp = startLine > 1 ? doc.lineAt(startLine - 2).text.trim() : '';
-    
-    // 检查上一行是否有 Hook 赋值
     const prevHookMatch = prevLine.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:React\.)?(use[A-Z]\w*)\s*\(/);
     if (prevHookMatch) {
       functionName = prevHookMatch[1];
     }
-    
-    // 检查上上一行（三行跨度）
-    if (!functionName) {
-      const twoLinesHookMatch = twoLinesUp.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:React\.)?(use[A-Z]\w*)\s*\(/);
-      if (twoLinesHookMatch) {
-        functionName = twoLinesHookMatch[1];
-      }
-    }
   }
   
-  // 如果找到了 Hook 变量赋值的函数名，直接翻译并返回
   if (functionName) {
-    const chineseName = translateFunctionNameToChineseSync(functionName, isVisible);
-    return chineseName;
+    return translateFunctionNameToChineseSync(
+      functionName, 
+      priority !== undefined ? priority : TranslationPriority.INVISIBLE_CURRENT_FILE,
+      doc.uri.toString()
+    );
   }
 
-  // 1. 直接的 Hook 调用（无变量赋值）
+  // 直接 Hook 调用
   const directHookMatch = s.match(/\b(?:React\.)?(useEffect|useState|useMemo|useCallback|useRef|useReducer|useLayoutEffect|useContext|useImperativeHandle|useDebugValue|useDeferredValue|useTransition|useId|useSyncExternalStore|useInsertionEffect)\s*\(/);
   if (directHookMatch) {
     const HOOK_LABELS: Record<string, string> = {
@@ -450,91 +547,186 @@ export function extractFunctionLabel(doc: vscode.TextDocument, startLine: number
       useSyncExternalStore: '外部存储同步',
       useInsertionEffect: '样式插入副作用',
     };
-    const hook = directHookMatch[1];
-    return HOOK_LABELS[hook] || 'Hook 调用';
+    return HOOK_LABELS[directHookMatch[1]] || 'Hook 调用';
   }
 
-  // 2. 变量赋值 + 回调箭头函数作为参数
-  if (!functionName) {
-    let m2 = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*[^;]*\([^)]*\)\s*=>/);
-    if (m2) {
-      functionName = m2[1];
-    }
-  }
-
-  // 3. 命名 function
+  // 其他函数匹配
   if (!functionName) {
     let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
-    if (m) {
-      functionName = m[1];
-    }
+    if (m) functionName = m[1];
   }
 
-  // 4. const/let/var 声明的箭头函数
   if (!functionName) {
     let m = s.match(/\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/);
-    if (m) {
-      functionName = m[1];
-    }
+    if (m) functionName = m[1];
   }
 
-  // 5. 赋值的箭头函数
   if (!functionName) {
     let m = s.match(/\b([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/);
-    if (m) {
-      functionName = m[1];
-    }
+    if (m) functionName = m[1];
   }
 
-  // 6. 其他箭头函数
   if (!functionName) {
     let m = s.match(/[=:\)]\s*=>/);
-    if (m) {
-      functionName = 'anonymous';
-    }
+    if (m) functionName = 'anonymous';
   }
 
-  // 7. async 方法
   if (!functionName) {
     let m = s.match(/^(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-    if (m) {
-      functionName = m[1];
-    }
+    if (m) functionName = m[1];
   }
 
-  // 8. 对象方法
   if (!functionName) {
     let m = s.match(/[:,]\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-    if (m) {
-      functionName = m[1];
-    }
+    if (m) functionName = m[1];
   }
 
-  // 9. 检查多行函数定义
   if (!functionName && startLine > 0) {
     const prevLine = doc.lineAt(startLine - 1).text.trim();
     const combined = `${prevLine} ${l1}`;
-    
     let m = combined.match(/\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/);
-    if (m) {
-      functionName = m[1];
-    }
+    if (m) functionName = m[1];
   }
 
   if (!functionName) {
     return '匿名函数';
   }
 
-  // 使用同步版本的翻译（优先从缓存获取）
-  const chineseName = translateFunctionNameToChineseSync(functionName, isVisible);
-  return chineseName;
+  return translateFunctionNameToChineseSync(
+    functionName, 
+    priority !== undefined ? priority : TranslationPriority.INVISIBLE_CURRENT_FILE,
+    doc.uri.toString()
+  );
 }
 
 /**
- * 清空翻译缓存
+ * 清空缓存
  */
 export function clearTranslationCache(): void {
   translationCache.clear();
   translationQueue = [];
   saveCacheToDisk();
+}
+
+/**
+ * 获取队列统计信息（用于调试）
+ */
+export function getQueueStats(): { total: number; byPriority: Record<number, number> } {
+  const stats = {
+    total: translationQueue.length,
+    byPriority: {
+      [TranslationPriority.VISIBLE_CURRENT_FILE]: 0,
+      [TranslationPriority.INVISIBLE_CURRENT_FILE]: 0,
+      [TranslationPriority.OTHER_OPEN_FILES]: 0
+    }
+  };
+  
+  translationQueue.forEach(task => {
+    stats.byPriority[task.priority]++;
+  });
+  
+  return stats;
+}
+/**
+ * 根据文档和行号自动判断优先级
+ */
+export function extractFunctionLabelAuto(
+  doc: vscode.TextDocument, 
+  startLine: number
+): string {
+  // 获取当前活动编辑器
+  const activeEditor = vscode.window.activeTextEditor;
+  
+  let priority = TranslationPriority.OTHER_OPEN_FILES;
+  
+  if (activeEditor) {
+    // 判断是否是当前文件
+    if (activeEditor.document.uri.toString() === doc.uri.toString()) {
+      // 判断是否在可见区域
+      const isVisible = activeEditor.visibleRanges.some(range => 
+        startLine >= range.start.line && startLine <= range.end.line
+      );
+      
+      if (isVisible) {
+        priority = TranslationPriority.VISIBLE_CURRENT_FILE;
+      } else {
+        priority = TranslationPriority.INVISIBLE_CURRENT_FILE;
+      }
+    }
+  }
+  
+  return extractFunctionLabel(doc, startLine, priority);
+}
+/**
+ * 批量翻译文档中的所有函数名
+ */
+export async function translateDocumentFunctions(
+  doc: vscode.TextDocument,
+  functionRanges: Array<{ line: number; functionName: string }>,
+  isActiveDocument: boolean = false
+): Promise<void> {
+  const activeEditor = vscode.window.activeTextEditor;
+  const visibleRanges = activeEditor?.visibleRanges || [];
+  
+  // 分类函数：可见 vs 不可见
+  const visibleFunctions: string[] = [];
+  const invisibleFunctions: string[] = [];
+  const otherFileFunctions: string[] = [];
+  
+  functionRanges.forEach(({ line, functionName }) => {
+    if (functionName === 'anonymous' || !functionName) return;
+    
+    // 已经在缓存中，跳过
+    if (translationCache.has(functionName)) return;
+    
+    if (isActiveDocument) {
+      // 判断是否在可见区域
+      const isVisible = visibleRanges.some(range => 
+        line >= range.start.line && line <= range.end.line
+      );
+      
+      if (isVisible) {
+        visibleFunctions.push(functionName);
+      } else {
+        invisibleFunctions.push(functionName);
+      }
+    } else {
+      otherFileFunctions.push(functionName);
+    }
+  });
+  
+  // 按优先级依次请求翻译
+  const promises: Promise<string>[] = [];
+  
+  // 1. 可见区域（最高优先级）
+  visibleFunctions.forEach(name => {
+    promises.push(translateFunctionNameToChinese(
+      name, 
+      TranslationPriority.VISIBLE_CURRENT_FILE, 
+      doc.uri.toString()
+    ));
+  });
+  
+  // 2. 当前文件不可见区域
+  invisibleFunctions.forEach(name => {
+    promises.push(translateFunctionNameToChinese(
+      name, 
+      TranslationPriority.INVISIBLE_CURRENT_FILE, 
+      doc.uri.toString()
+    ));
+  });
+  
+  // 3. 其他文件
+  otherFileFunctions.forEach(name => {
+    promises.push(translateFunctionNameToChinese(
+      name, 
+      TranslationPriority.OTHER_OPEN_FILES, 
+      doc.uri.toString()
+    ));
+  });
+  
+  // 等待所有翻译完成（后台异步）
+  Promise.all(promises).catch(err => {
+    console.error('批量翻译出错:', err);
+  });
 }
