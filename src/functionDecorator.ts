@@ -256,6 +256,46 @@ function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
 }
 
 /**
+ * 增强的函数名提取器 - 支持各种箭头函数写法
+ * 支持: export const func = (params) => {}
+ * 支持: const func = (param = defaultValue) => {}
+ * 支持: export const func = () => {}
+ * 支持: export const func = (): ReturnType => {
+ * 等各种变体
+ */
+function extractFunctionName(text: string): string {
+  // 1. 传统 function 声明: function myFunc() 或 export function myFunc()
+  let m = text.match(/\b(?:export\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/);
+  if (m) return m[1];
+
+  // 2. const/let/var 箭头函数 - 最宽松的匹配，支持所有变体
+  // 匹配: export const getLocationCoord = (needAuth = false) => {
+  // 匹配: const func = () => {}
+  // 匹配: export const func = async (param: Type = default) => {
+  // 匹配: export const initOrderTemplate = (): API.Order.OrderTemplateInfo => {
+  // 关键改进：返回类型可以包含点号、泛型等复杂类型
+  m = text.match(/\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/);
+  if (m) return m[1];
+
+  // 3. 简化的箭头函数赋值（无 const/let/var 关键字）
+  // 匹配: myFunc = (params) => {}
+  m = text.match(/\b([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/);
+  if (m) return m[1];
+
+  // 4. 对象方法（async 或普通）
+  // 匹配: async myMethod() {}
+  m = text.match(/^(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+  if (m) return m[1];
+
+  // 5. 对象字面量中的方法
+  // 匹配: obj = { myMethod() {} }
+  m = text.match(/[:,]\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
+  if (m) return m[1];
+
+  return '';
+}
+
+/**
  * 计算函数范围（带缓存）
  */
 export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] {
@@ -274,8 +314,14 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   const commentPattern = /^\s*(\/\/|\*|\/\*)/;
   const controlFlowPattern = /\b(if|else|while|for|switch|catch|with|try)\s*\(/;
   const functionPattern = /\bfunction\b/;
-  const constArrowPattern = /\b(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::[^=>{]+)?\s*=>/;
-  const assignArrowPattern = /\b[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::[^=>{]+)?\s*=>/;
+  // 增强的箭头函数模式 - 支持默认参数、类型注解、export 等
+  // 匹配: export const func = (param = value) => {}
+  // 匹配: const func = (a, b = 1) => {}
+  // 匹配: const func = () => {}
+  // 匹配: export const initOrderTemplate = (): API.Order.OrderTemplateInfo => {
+  // 关键：返回类型注解可以包含点号、泛型等复杂结构，所以用 [^=>]+ 而不是 [^=>{]+
+  const constArrowPattern = /\b(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/;
+  const assignArrowPattern = /\b[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*(?:async\s+)?(?:<[^>]*>\s*)?\([^)]*\)\s*(?::\s*[^=>]+)?\s*=>/;
   const genericArrowPattern = /[=:\)]\s*=>/;
   // 变量赋值 + 回调箭头函数作为参数的启发式检测
   const assignedWithCallbackPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*[^;]*\([^)]*\)\s*=>/;
@@ -489,30 +535,8 @@ async function preloadTranslations(doc: vscode.TextDocument, ranges: vscode.Rang
     const l2 = line + 1 < doc.lineCount ? doc.lineAt(line + 1).text.trim() : '';
     const s = `${l1} ${l2}`;
 
-    let functionName = '';
-    let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
-    if (m) functionName = m[1];
-
-    if (!functionName) {
-      m = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-      if (m) functionName = m[1];
-    }
-
-    if (!functionName) {
-      m = s.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-      if (m) functionName = m[1];
-    }
-
-    if (!functionName) {
-      m = s.match(/^(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-      if (m) functionName = m[1];
-    }
-
-    if (!functionName) {
-      m = s.match(/[:,]\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-      if (m) functionName = m[1];
-    }
-
+    const functionName = extractFunctionName(s);
+    
     if (functionName && functionName !== 'anonymous') {
       functionNames.push(functionName);
     }
@@ -630,35 +654,8 @@ export function addFunctionComments(editor: vscode.TextEditor) {
     
     if (keywords.test(line)) continue;
     
-    let functionName = '';
-    
-    let match = line.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
-    if (match) functionName = match[1];
-    
-    if (!functionName) {
-      match = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-      if (match) functionName = match[1];
-    }
-    
-    if (!functionName) {
-      match = line.match(/\b([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{/);
-      if (match) functionName = match[1];
-    }
-    
-    if (!functionName) {
-      match = line.match(/\basync\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-      if (match) functionName = match[1];
-    }
-    
-    if (!functionName) {
-      match = line.match(/^([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-      if (match) functionName = match[1];
-    }
-    
-    if (!functionName) {
-      match = line.match(/[:,]\s*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/);
-      if (match) functionName = match[1];
-    }
+    // 使用统一的函数名提取器
+    const functionName = extractFunctionName(line);
     
     if (functionName) {
       const hasComment = i > 0 && (
