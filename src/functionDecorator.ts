@@ -370,21 +370,47 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
     const text = doc.lineAt(i).text;
     if (!maybeFuncStart(text, i)) continue;
 
-    // 查找第一个 '{'
+    // 改为：先配平参数括号直到匹配到 ')', 再在其后寻找第一个 '{'
     let braceLine = i;
-    let foundBrace = text.includes('{');
-    
-    // 允许跨行查找（最多 5 行）
-    let lookAhead = 0;
-    while (!foundBrace && braceLine + 1 < doc.lineCount && lookAhead < 5) {
-      braceLine++;
-      lookAhead++;
-      if (doc.lineAt(braceLine).text.includes('{')) {
-        foundBrace = true;
-        break;
+    let foundBrace = false;
+    const maxScanLines = 50; // 有界扫描，避免无穷回溯
+    let scannedLines = 0;
+    let parenDepth = 0;
+    let startedParams = false; // 是否已遇到第一个 '('
+
+    // 跨行逐字符扫描
+    while (!foundBrace && braceLine < doc.lineCount && scannedLines <= maxScanLines) {
+      const lineText = doc.lineAt(braceLine).text;
+
+      for (let idx = 0; idx < lineText.length; idx++) {
+        const ch = lineText[idx];
+
+        if (ch === '(') {
+          startedParams = true;
+          parenDepth++;
+        } else if (ch === ')') {
+          if (parenDepth > 0) parenDepth--;
+        }
+
+        // 只有当未进入参数区或参数已闭合 (parenDepth === 0) 时，遇到 '{' 才视为函数体开始
+        if (ch === '{' && (!startedParams || parenDepth === 0)) {
+          foundBrace = true;
+          break;
+        }
+
+        // 如果参数已闭合且遇到分号，说明这不是块体函数（如类型/声明行），提前放弃
+        if (ch === ';' && startedParams && parenDepth === 0) {
+          foundBrace = false;
+          break;
+        }
+      }
+
+      if (!foundBrace) {
+        braceLine++;
+        scannedLines++;
       }
     }
-    
+
     if (!foundBrace) continue;
 
     // 从找到的第一个 '{' 开始做 { } 计数直到闭合
