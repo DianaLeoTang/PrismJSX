@@ -139,6 +139,7 @@
     "package": "npm run build && vsce package"
   },
   "devDependencies": {
+    "@types/node": "^24.7.2",
     "@types/vscode": "^1.85.0",
     "standard-version": "^9.5.0",
     "tslib": "^2.6.2",
