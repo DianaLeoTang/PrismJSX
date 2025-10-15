@@ -264,8 +264,8 @@ function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
  * 等各种变体
  */
 function extractFunctionName(text: string): string {
-  // 1. 传统 function 声明: function myFunc() 或 export function myFunc()
-  let m = text.match(/\b(?:export\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/);
+  // 1. 传统 function 声明: function myFunc() 或 export function myFunc() 或 export async function myFunc()
+  let m = text.match(/\b(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/);
   if (m) return m[1];
 
   // 2. const/let/var 箭头函数 - 最宽松的匹配，支持所有变体
@@ -340,6 +340,15 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
     if (genericArrowPattern.test(s)) {
       // 检查是否是数组方法的回调
       if (isArrayMethodChain(doc, lineIndex)) {
+        return false;
+      }
+    }
+    
+    // 排除简单的 Hook 变量赋值（如 const outlet = useOutlet();）
+    if (hookAssignedPattern.test(s)) {
+      // 检查是否是简单的 Hook 调用赋值，如果是则不识别为函数
+      const simpleHookMatch = s.match(/^\s*(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*(?:React\.)?use[A-Z]\w*\s*\(\s*\)\s*;?\s*$/);
+      if (simpleHookMatch) {
         return false;
       }
     }
