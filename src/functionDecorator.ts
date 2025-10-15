@@ -325,8 +325,11 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   const genericArrowPattern = /[=:\)]\s*=>/;
   // 变量赋值 + 回调箭头函数作为参数的启发式检测
   const assignedWithCallbackPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=\s*[^;]*\([^)]*\)\s*=>/;
-  const methodPattern = /^(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
-  const objectMethodPattern = /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/;
+  // 放宽方法检测：仅要求方法名后出现 '('，不要求同一行闭合 ')'
+  // 类方法（可含可见性、static、override、async 等）
+  const methodPattern = /^(?:public\s+|private\s+|protected\s+)?(?:static\s+)?(?:override\s+)?(?:async\s+)?[A-Za-z_$][\w$]*\s*\(/;
+  // 对象字面量方法（前面可能出现 ':' 或 ',' 连接）
+  const objectMethodPattern = /[:,]\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\(/;
   // Hook 调用模式：匹配任何 useXxx( 格式
   const hookCallPattern = /\b(?:React\.)?use[A-Z]\w*\s*\(/;
   const hookAssignedPattern = /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*(?:React\.)?use[A-Z]\w*\s*\(/;
