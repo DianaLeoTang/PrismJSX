@@ -35,6 +35,9 @@ function applyAll(editor: vscode.TextEditor, force = false) {
   // 再渲染函数，并对 region 进行相减
   applyFunctionDecorations(editor, getRegionSuppressionRanges());
   
+  if (!force) {
+    lastProcessedVersion.set(docUri, docVersion);
+  }
   // 记录已处理的版本
   lastProcessedVersion.set(docUri, docVersion);
   
@@ -70,6 +73,11 @@ export function activate(context: vscode.ExtensionContext) {
   setTranslationCompleteCallback(() => {
     const ed = vscode.window.activeTextEditor;
     if (ed) {
+      // 🔥 关键修改：取消待执行的防抖任务
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = undefined;
+      }
       console.log('[INFO] 翻译完成，刷新界面');
       applyAllDebounced(ed, true); // 强制刷新，确保显示最新翻译
     }

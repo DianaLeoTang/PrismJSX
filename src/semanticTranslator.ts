@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as http from 'http';
+import * as https from 'https';
 
 // ============ 私有云 AI API 集成 ============
 
@@ -16,7 +18,7 @@ function getBuiltinApiKey(): string {
   }
   
   try {
-    const envPath = path.join(__dirname, '..', '.env');
+    const envPath = path.join(__dirname || '', '..', '.env');
     if (fs.existsSync(envPath)) {
       const envContent = fs.readFileSync(envPath, 'utf8');
       const match = envContent.match(/BUILTIN_API_KEY\s*=\s*(.+)/);
@@ -193,12 +195,12 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
           'Content-Type': 'application/json'
         },
         timeout: 30000,
-        httpAgent: new (require('http').Agent)({ 
+        httpAgent: new http.Agent({ 
           keepAlive: true,
           keepAliveMsecs: 30000,
           maxSockets: 1
         }),
-        httpsAgent: new (require('https').Agent)({ 
+        httpsAgent: new https.Agent({ 
           keepAlive: true,
           keepAliveMsecs: 30000,
           maxSockets: 1
@@ -282,6 +284,7 @@ async function processBatchQueue(): Promise<void> {
   }
 
   processingBatch = true;
+  let hasTranslated = false; // 标记是否有新的翻译完成
 
   try {
     while (translationQueue.length > 0) {
@@ -338,14 +341,17 @@ async function processBatchQueue(): Promise<void> {
           task.resolve(translation);
         });
 
+        hasTranslated = true;
         // 定期保存缓存
         if (translationCache.size % 20 === 0) {
           saveCacheToDisk();
         }
         
         // 优先级0（可见区域）完成后立即触发刷新
-        if (highestPriority === TranslationPriority.VISIBLE_CURRENT_FILE && onTranslationComplete) {
-          onTranslationComplete();
+        if (highestPriority === TranslationPriority.VISIBLE_CURRENT_FILE ) {
+          // onTranslationComplete();
+          notifyTranslationComplete();
+
         }
         
       } catch (error) {
@@ -372,6 +378,9 @@ async function processBatchQueue(): Promise<void> {
   } finally {
     processingBatch = false;
     await saveCacheToDisk();
+    if (hasTranslated) {
+      notifyTranslationComplete();
+    }
     console.log('✓ 翻译队列处理完成');
   }
 }
@@ -394,6 +403,9 @@ async function translateWithAI(
         existing.timestamp = Date.now(); // 更新时间戳
         console.log(`↑ 提升 "${functionName}" 的翻译优先级到 ${priority}`);
       }
+      // 等待现有任务完成
+      existing.resolve = resolve;
+      existing.reject = reject;
       return; // 已在队列中
     }
 
@@ -457,7 +469,8 @@ export async function translateFunctionNameToChinese(
 let onTranslationComplete: (() => void) | undefined;
 
 export function setTranslationCompleteCallback(callback: () => void): void {
-  onTranslationComplete = callback;
+  // onTranslationComplete = callback;
+  addTranslationCompleteCallback(callback);
 }
 
 /**
@@ -482,9 +495,8 @@ export function translateFunctionNameToChineseSync(
 
   if (enableAI && !translationPaused) {
     translateFunctionNameToChinese(functionName, priority, documentUri).then(result => {
-      if (priority === TranslationPriority.VISIBLE_CURRENT_FILE && onTranslationComplete) {
-        onTranslationComplete();
-      }
+      // 翻译完成后，无论什么优先级都触发界面刷新
+      notifyTranslationComplete();
     }).catch(() => {});
   }
 
@@ -505,17 +517,25 @@ export function extractFunctionLabel(
 
   let functionName = '';
 
-  // Hook 变量赋值
+  // Hook 变量赋值 - 排除简单的 Hook 调用赋值
   let hookVarMatch = s.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:React\.)?(use[A-Z]\w*)\s*\(/);
   if (hookVarMatch) {
-    functionName = hookVarMatch[1];
+    // 检查是否是简单的 Hook 调用赋值（如 const outlet = useOutlet();）
+    const simpleHookMatch = s.match(/^\s*(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*(?:React\.)?use[A-Z]\w*\s*\(\s*\)\s*;?\s*$/);
+    if (!simpleHookMatch) {
+      functionName = hookVarMatch[1];
+    }
   }
   
   if (!functionName && startLine > 0) {
     const prevLine = doc.lineAt(startLine - 1).text.trim();
     const prevHookMatch = prevLine.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:React\.)?(use[A-Z]\w*)\s*\(/);
     if (prevHookMatch) {
-      functionName = prevHookMatch[1];
+      // 检查是否是简单的 Hook 调用赋值
+      const simpleHookMatch = prevLine.match(/^\s*(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*(?:React\.)?use[A-Z]\w*\s*\(\s*\)\s*;?\s*$/);
+      if (!simpleHookMatch) {
+        functionName = prevHookMatch[1];
+      }
     }
   }
   
@@ -552,7 +572,7 @@ export function extractFunctionLabel(
 
   // 其他函数匹配
   if (!functionName) {
-    let m = s.match(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/);
+    let m = s.match(/\b(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/);
     if (m) functionName = m[1];
   }
 
@@ -728,5 +748,28 @@ export async function translateDocumentFunctions(
   // 等待所有翻译完成（后台异步）
   Promise.all(promises).catch(err => {
     console.error('批量翻译出错:', err);
+  });
+}
+// 回调函数改为数组，支持多个监听者
+let translationCompleteCallbacks: Array<() => void> = [];
+
+export function addTranslationCompleteCallback(callback: () => void): void {
+  if (!translationCompleteCallbacks.includes(callback)) {
+    translationCompleteCallbacks.push(callback);
+  }
+}
+
+export function removeTranslationCompleteCallback(callback: () => void): void {
+  translationCompleteCallbacks = translationCompleteCallbacks.filter(cb => cb !== callback);
+}
+
+// 触发所有回调
+function notifyTranslationComplete(): void {
+  translationCompleteCallbacks.forEach(callback => {
+    try {
+      callback();
+    } catch (error) {
+      console.error('翻译完成回调执行失败:', error);
+    }
   });
 }
