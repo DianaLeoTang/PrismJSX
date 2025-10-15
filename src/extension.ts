@@ -4,7 +4,7 @@ import { applyRegionDecorations, disposeRegionDecorations, getRegionSuppressionR
 import { clearTranslationCache, setTranslationCompleteCallback, initializeCache } from './semanticTranslator';
 
 // 防抖定时器
-let debounceTimer: NodeJS.Timeout | undefined;
+let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 // 性能限制：最大文件行数
 const MAX_FILE_LINES = 10000;

@@ -11,7 +11,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "sourceMap": false
+    "sourceMap": false,
+    "types": ["node", "vscode"],
+    "moduleResolution": "node"
   },
   "include": [
     "src"
