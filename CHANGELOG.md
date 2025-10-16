@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.5.0](https://github.com/DianaLeoTang/PrismJSX/compare/v3.4.0...v3.5.0) (2025-10-16)
+
+
+### ✨ 新功能
+
+*  注释对其他hooks、函数的颜色标注 ([18b74a1](https://github.com/DianaLeoTang/PrismJSX/commit/18b74a19bc2cedf581fd88e91d55f420c1e94d27))
+* 1调整代码结构，函数检测边界进行更严格的约束。2hooks的识别在最优先级别。3JSX里的hooks也要能被识别 ([a6fca7e](https://github.com/DianaLeoTang/PrismJSX/commit/a6fca7e3507fa2da679dfd0f39869bc5f5a286a4))
+* 打包Vscode插件时，忽略.env文件 ([8c914ee](https://github.com/DianaLeoTang/PrismJSX/commit/8c914ee9348d73dd3768264e4402d5bcd77a3216))
+* 调整主题色亮度 ([c6939b1](https://github.com/DianaLeoTang/PrismJSX/commit/c6939b1ccb79cffe9bf67db588bddc9828612e45))
+* 更新readme文件 ([8dbc4b2](https://github.com/DianaLeoTang/PrismJSX/commit/8dbc4b26fe72e397031c88a9b5a35695bd6c280a))
+* 忽略JSX标签里的函数识别 ([39ef749](https://github.com/DianaLeoTang/PrismJSX/commit/39ef749b17935972e00a3d0234425f8434baad88))
+* 进一步优化TS类型定义里的函数忽略 ([baca4cd](https://github.com/DianaLeoTang/PrismJSX/commit/baca4cd329c0a91a858dc0e386f4e4cb694812f2))
+* 取消对低频hooks的识别 ([bb9d57a](https://github.com/DianaLeoTang/PrismJSX/commit/bb9d57a93b5449ffb169c2db7e932842ca65a91d))
+* 去掉不使用的命令 ([2b8d526](https://github.com/DianaLeoTang/PrismJSX/commit/2b8d526899213cd25a99129cc91b9fb873c3bb2b))
+* 同步新功能介绍到readme文件 ([035e209](https://github.com/DianaLeoTang/PrismJSX/commit/035e20910fce494436f584877f31dcafe4df1037))
+* 修改打包目录结构 ([843baa0](https://github.com/DianaLeoTang/PrismJSX/commit/843baa049e67274c3190511f85ae433d07c20442))
+
 ## [3.4.0](https://github.com/DianaLeoTang/PrismJSX/compare/v3.3.0...v3.4.0) (2025-10-14)
 
 
