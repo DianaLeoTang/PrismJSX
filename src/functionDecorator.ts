@@ -218,8 +218,35 @@ function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
   }
 
   // 1. 检查 JSX 内联函数（需要过滤掉）
-  const jsxEventPattern = /\b(onClick|onChange|onSubmit|onFocus|onBlur|onMouse|onKey|onLoad|onError|onScroll|onResize|onTouch|onInput|onSelect|onContextMenu|onDrag|onDrop|onWheel|onAnimation|onTransition)\s*=\s*\{/i;
+  const jsxEventPattern = /\b(onClick|onChange|onSubmit|onFocus|onBlur|onMouse|onKey|onLoad|onError|onScroll|onResize|onTouch|onInput|onSelect|onContextMenu|onDrag|onDrop|onWheel|onAnimation|onTransition|onClickItem|onClickStickItem|onOpenRightSwipe)\s*=\s*\{/i;
   if (jsxEventPattern.test(combined)) {
+    return 'jsx-inline';
+  }
+
+  // 1.1 检查 JSX 属性中的函数引用（需要过滤掉）
+  const jsxFunctionRefPattern = /\b(onClick|onChange|onSubmit|onFocus|onBlur|onMouse|onKey|onLoad|onError|onScroll|onResize|onTouch|onInput|onSelect|onContextMenu|onDrag|onDrop|onWheel|onAnimation|onTransition|onClickItem|onClickStickItem|onOpenRightSwipe)\s*=\s*\{?[A-Za-z_$][\w$]*\}?/i;
+  if (jsxFunctionRefPattern.test(combined)) {
+    return 'jsx-inline';
+  }
+
+  // 1.2 检查 JSX 标签内的箭头函数（需要过滤掉）
+  // 匹配: (item) => ( 或 (id: string) => { 等JSX内的箭头函数
+  const jsxArrowPattern = /^\s*\([^)]*\)\s*=>\s*[({]/;
+  if (jsxArrowPattern.test(trimmed)) {
+    return 'jsx-inline';
+  }
+
+  // 1.3 检查 JSX 标签内的异步箭头函数（需要过滤掉）
+  // 匹配: async () => { 等JSX内的异步箭头函数
+  const jsxAsyncArrowPattern = /^\s*async\s*\([^)]*\)\s*=>\s*\{/;
+  if (jsxAsyncArrowPattern.test(trimmed)) {
+    return 'jsx-inline';
+  }
+
+  // 1.4 检查 JSX 标签内的回调函数（需要过滤掉）
+  // 匹配: Taro.nextTick(() => { 等JSX内的回调函数
+  const jsxCallbackPattern = /^\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\(\s*\([^)]*\)\s*=>\s*\{/;
+  if (jsxCallbackPattern.test(trimmed)) {
     return 'jsx-inline';
   }
 
