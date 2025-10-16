@@ -54,7 +54,369 @@ function getColorScheme(): Record<string, string> {
   const schemes = isDarkTheme() ? COLOR_SCHEMES_DARK : COLOR_SCHEMES_LIGHT;
   return schemes[schemeName] || schemes.vibrant;
 }
+/**
+ * 核心优化点:
+ * 1. 统一的排除区域管理(Hook内部、Region、JSX)
+ * 2. 更精确的函数边界检测
+ * 3. 改进的类型定义过滤
+ */
 
+// ===== 1. 统一的排除区域管理 =====
+
+interface ExclusionZone {
+  range: vscode.Range;
+  type: 'hook' | 'region' | 'jsx' | 'typescript';
+  reason: string;
+}
+
+/**
+ * 计算所有需要排除的区域
+ */
+function computeAllExclusionZones(doc: vscode.TextDocument): ExclusionZone[] {
+  const zones: ExclusionZone[] = [];
+  
+  // 1. 检测 Hook 内部区域
+  zones.push(...detectHookInternalZones(doc));
+  
+  // 2. 检测 Region 区域
+  zones.push(...detectRegionZones(doc));
+  
+  // 3. 检测 JSX 区域
+  zones.push(...detectJSXZones(doc));
+  
+  // 4. 检测 TypeScript 类型定义区域
+  zones.push(...detectTypeScriptZones(doc));
+  
+  return zones;
+}
+
+/**
+ * 检查某个范围是否在排除区域内
+ */
+function isInExclusionZone(range: vscode.Range, zones: ExclusionZone[]): boolean {
+  return zones.some(zone => {
+    // 完全包含或有交集都算在排除区域内
+    return !(range.end.isBefore(zone.range.start) || range.start.isAfter(zone.range.end));
+  });
+}
+
+// ===== 2. Hook 内部区域检测 =====
+
+// const HOOK_KEYWORDS = ['useEffect', 'useState', 'useMemo', 'useCallback'] as const;
+
+/**
+ * 检测所有 Hook 调用的内部区域
+ * 策略: 找到 Hook 调用后,识别其回调函数的大括号范围
+ */
+function detectHookInternalZones(doc: vscode.TextDocument): ExclusionZone[] {
+  const zones: ExclusionZone[] = [];
+  
+  for (let i = 0; i < doc.lineCount; i++) {
+    const line = doc.lineAt(i).text;
+    
+    // 检测是否有 Hook 调用
+    const hookMatch = line.match(/\b(useEffect|useState|useMemo|useCallback)\s*\(/);
+    if (!hookMatch) continue;
+    
+    const hookName = hookMatch[1];
+    
+    // 对于 useState,通常没有回调函数,跳过
+    if (hookName === 'useState') continue;
+    
+    // 查找 Hook 参数中的函数定义范围
+    const functionRange = findHookCallbackRange(doc, i);
+    if (functionRange) {
+      zones.push({
+        range: functionRange,
+        type: 'hook',
+        reason: `${hookName} 内部函数`
+      });
+    }
+  }
+  
+  return zones;
+}
+
+/**
+ * 查找 Hook 回调函数的大括号范围
+ * 例如: useEffect(() => { ... }, [deps])
+ */
+function findHookCallbackRange(doc: vscode.TextDocument, startLine: number): vscode.Range | null {
+  let line = startLine;
+  let text = doc.lineAt(line).text;
+  
+  // 查找第一个 => { 或 function() {
+  let foundStart = false;
+  let braceStartLine = -1;
+  let braceStartChar = -1;
+  
+  // 向前查找最多10行
+  for (let lookAhead = 0; lookAhead < 10 && line + lookAhead < doc.lineCount; lookAhead++) {
+    const currentLine = doc.lineAt(line + lookAhead).text;
+    
+    // 匹配箭头函数或普通函数的开始大括号
+    const arrowMatch = currentLine.match(/=>\s*\{/);
+    const functionMatch = currentLine.match(/function\s*\([^)]*\)\s*\{/);
+    
+    if (arrowMatch || functionMatch) {
+      braceStartLine = line + lookAhead;
+      const matchIndex = arrowMatch 
+        ? currentLine.indexOf('{', currentLine.indexOf('=>'))
+        : currentLine.indexOf('{', currentLine.indexOf('function'));
+      braceStartChar = matchIndex;
+      foundStart = true;
+      break;
+    }
+    
+    // 如果遇到分号或下一个语句,停止查找
+    if (/;\s*$/.test(currentLine.trim()) && lookAhead > 0) break;
+  }
+  
+  if (!foundStart) return null;
+  
+  // 从找到的大括号开始,匹配闭合的大括号
+  let openCount = 1;
+  let currentLine = braceStartLine;
+  let currentChar = braceStartChar + 1;
+  
+  while (currentLine < doc.lineCount && openCount > 0) {
+    const lineText = doc.lineAt(currentLine).text;
+    
+    for (let i = currentChar; i < lineText.length; i++) {
+      if (lineText[i] === '{') openCount++;
+      else if (lineText[i] === '}') {
+        openCount--;
+        if (openCount === 0) {
+          // 找到匹配的闭合大括号
+          return new vscode.Range(
+            new vscode.Position(braceStartLine, braceStartChar),
+            new vscode.Position(currentLine, i + 1)
+          );
+        }
+      }
+    }
+    
+    currentLine++;
+    currentChar = 0;
+  }
+  
+  return null;
+}
+
+// ===== 3. Region 区域检测 =====
+
+/**
+ * 检测 #region / #endregion 标记的区域
+ */
+function detectRegionZones(doc: vscode.TextDocument): ExclusionZone[] {
+  const zones: ExclusionZone[] = [];
+  const regionStack: number[] = [];
+  
+  for (let i = 0; i < doc.lineCount; i++) {
+    const text = doc.lineAt(i).text.trim();
+    
+    // 检测 region 开始
+    if (/#region\b/.test(text)) {
+      regionStack.push(i);
+    }
+    // 检测 region 结束
+    else if (/#endregion\b/.test(text)) {
+      const startLine = regionStack.pop();
+      if (startLine !== undefined) {
+        zones.push({
+          range: new vscode.Range(
+            new vscode.Position(startLine, 0),
+            new vscode.Position(i, doc.lineAt(i).text.length)
+          ),
+          type: 'region',
+          reason: 'Region 标记区域'
+        });
+      }
+    }
+  }
+  
+  return zones;
+}
+
+// ===== 4. JSX 区域检测(改进版) =====
+
+/**
+ * 检测 JSX 标签内的函数区域
+ * 策略: 识别 return ( 后的JSX区域
+ */
+function detectJSXZones(doc: vscode.TextDocument): ExclusionZone[] {
+  const zones: ExclusionZone[] = [];
+  
+  for (let i = 0; i < doc.lineCount; i++) {
+    const line = doc.lineAt(i).text;
+    
+    // 检测 return 语句
+    if (/\breturn\s*\(/.test(line) || /\breturn\s*</.test(line)) {
+      const jsxRange = findJSXBlockRange(doc, i);
+      if (jsxRange) {
+        zones.push({
+          range: jsxRange,
+          type: 'jsx',
+          reason: 'JSX 标签区域'
+        });
+      }
+    }
+  }
+  
+  return zones;
+}
+
+/**
+ * 查找 JSX 块的范围
+ */
+function findJSXBlockRange(doc: vscode.TextDocument, startLine: number): vscode.Range | null {
+  const line = doc.lineAt(startLine).text;
+  
+  // 如果是 return ( 形式
+  if (/\breturn\s*\(/.test(line)) {
+    let parenCount = 0;
+    let foundStart = false;
+    
+    for (let i = startLine; i < doc.lineCount; i++) {
+      const currentLine = doc.lineAt(i).text;
+      
+      for (let j = 0; j < currentLine.length; j++) {
+        if (currentLine[j] === '(') {
+          parenCount++;
+          foundStart = true;
+        } else if (currentLine[j] === ')') {
+          parenCount--;
+          if (foundStart && parenCount === 0) {
+            return new vscode.Range(
+              new vscode.Position(startLine, 0),
+              new vscode.Position(i, j + 1)
+            );
+          }
+        }
+      }
+    }
+  }
+  
+  // 如果是 return < 形式,查找对应的闭合标签
+  if (/\breturn\s*</.test(line)) {
+    let tagDepth = 0;
+    
+    for (let i = startLine; i < Math.min(startLine + 100, doc.lineCount); i++) {
+      const currentLine = doc.lineAt(i).text;
+      
+      // 简单的标签计数(不完美,但足够用)
+      const openTags = (currentLine.match(/<[A-Z][^>]*>/g) || []).length;
+      const selfClosingTags = (currentLine.match(/<[A-Z][^>]*\/>/g) || []).length;
+      const closeTags = (currentLine.match(/<\/[A-Z][^>]*>/g) || []).length;
+      
+      tagDepth += openTags - selfClosingTags - closeTags;
+      
+      if (i > startLine && tagDepth === 0) {
+        return new vscode.Range(
+          new vscode.Position(startLine, 0),
+          new vscode.Position(i, doc.lineAt(i).text.length)
+        );
+      }
+    }
+  }
+  
+  return null;
+}
+
+// ===== 5. TypeScript 类型定义区域检测(增强版) =====
+
+/**
+ * 检测 TypeScript 类型定义区域
+ */
+function detectTypeScriptZones(doc: vscode.TextDocument): ExclusionZone[] {
+  const zones: ExclusionZone[] = [];
+  
+  // 检测文件扩展名
+  if (!doc.fileName.match(/\.(ts|tsx)$/)) {
+    return zones;
+  }
+  
+  let inTypeBlock = false;
+  let typeBlockStart = -1;
+  let braceCount = 0;
+  
+  for (let i = 0; i < doc.lineCount; i++) {
+    const line = doc.lineAt(i).text.trim();
+    
+    // 检测类型定义开始
+    if (/^\s*(type|interface|enum|namespace)\s+[A-Za-z_$][\w$]*/.test(line)) {
+      inTypeBlock = true;
+      typeBlockStart = i;
+      braceCount = 0;
+    }
+    
+    if (inTypeBlock) {
+      // 计算大括号
+      for (const char of line) {
+        if (char === '{') braceCount++;
+        else if (char === '}') braceCount--;
+      }
+      
+      // 类型定义结束
+      if (braceCount === 0 && line.includes('}')) {
+        zones.push({
+          range: new vscode.Range(
+            new vscode.Position(typeBlockStart, 0),
+            new vscode.Position(i, doc.lineAt(i).text.length)
+          ),
+          type: 'typescript',
+          reason: 'TypeScript 类型定义'
+        });
+        inTypeBlock = false;
+      }
+      
+      // 单行类型定义(无大括号)
+      if (braceCount === 0 && /;\s*$/.test(line) && typeBlockStart === i) {
+        zones.push({
+          range: new vscode.Range(
+            new vscode.Position(i, 0),
+            new vscode.Position(i, doc.lineAt(i).text.length)
+          ),
+          type: 'typescript',
+          reason: 'TypeScript 单行类型定义'
+        });
+        inTypeBlock = false;
+      }
+    }
+  }
+  
+  return zones;
+}
+
+// ===== 6. 改进的主函数识别逻辑 =====
+
+/**
+ * 改进的函数范围计算
+ */
+export function computeFunctionRangesOptimized(doc: vscode.TextDocument): vscode.Range[] {
+  // 1. 先计算所有排除区域
+  const exclusionZones = computeAllExclusionZones(doc);
+  
+  exclusionZones.forEach(zone => {
+    // console.log(`  - ${zone.type}: ${zone.reason} (行 ${zone.range.start.line + 1}-${zone.range.end.line + 1})`);
+  });
+  
+  // 2. 使用原有逻辑识别所有可能的函数
+  const allRanges = computeFunctionRangesOptimized(doc);
+  
+  // 3. 过滤掉在排除区域内的函数
+  const filteredRanges = allRanges.filter(range => {
+    const inExclusion = isInExclusionZone(range, exclusionZones);
+    if (inExclusion) {
+      const line = doc.lineAt(range.start.line).text.trim();
+    }
+    return !inExclusion;
+  });
+  
+  console.log(`✓ 最终识别 ${filteredRanges.length} 个有效函数 (排除了 ${allRanges.length - filteredRanges.length} 个)`);
+  
+  return filteredRanges;
+}
 /** React Hooks 关键字列表 - 包含所有官方 Hooks */
 const HOOK_KEYWORDS = [
   'useEffect',
@@ -211,6 +573,17 @@ function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
   const trimmed = currentLine.trim();
   const nextLine = startLine + 1 < doc.lineCount ? doc.lineAt(startLine + 1).text : '';
   const combined = `${currentLine} ${nextLine}`;
+  // 🔥 最优先：检查是否是 Hook 调用
+  const directHook = detectHookInText(currentLine);
+  if (directHook) {
+    return directHook;
+  }
+
+  // 检查跨行的 Hook 调用
+  const combinedHook = detectHookInText(combined);
+  if (combinedHook) {
+    return combinedHook;
+  }
 
   // 0. 优先检查：如果是数组方法链式调用的一部分，直接返回 'array-callback'
   if (isArrayMethodChain(doc, startLine)) {
@@ -255,31 +628,17 @@ function getFunctionType(doc: vscode.TextDocument, startLine: number): string {
     return 'array-callback';
   }
 
-  // 3. 检查当前行是否直接包含 Hook 调用
-  const directHook = detectHookInText(currentLine);
-  if (directHook) return directHook;
-
-  // 4. 检查跨行的 Hook 调用
-  const combinedHook = detectHookInText(combined);
-  if (combinedHook) return combinedHook;
-
   // 5. 如果是裸箭头函数，向上回溯查找 Hook 上下文（已增强，会排除数组方法）
   if (isLikelyBareArrowStart(trimmed)) {
     const hookFromAbove = lookupHookAbove(doc, startLine);
     if (hookFromAbove) return hookFromAbove;
   }
 
-  // 6. 检查 React 组件（大写字母开头的函数）
-  const componentPattern = /\b(?:function\s+([A-Z][A-Za-z_$]*)|(?:const|let|var)\s+([A-Z][A-Za-z_$]*)\s*=)/;
-  if (componentPattern.test(combined)) return 'component';
-
-  // 7. 检查事件处理函数（handle, on 开头）
-  if (/\b(handle|on)[A-Z][a-zA-Z_$]/.test(combined)) return 'handler';
-
-  // 8. 检查 region 标注
+  // 6. 检查 region 标注
   if (combined.includes('#region')) return 'region';
 
-  return 'default';
+  // 其他所有函数都不识别
+  return 'ignore';
 }
 
 /**
@@ -360,6 +719,20 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
 
   const maybeFuncStart = (line: string, lineIndex: number) => {
     const s = line.trim();
+    // 🔥 直接优先检查 Hook - 在所有过滤规则之前
+    const directHookPattern = /\b(?:React\.)?(useEffect|useState|useMemo|useCallback)\s*\(/;
+    if (directHookPattern.test(s)) {
+      return true;
+    }
+    
+    // 检查跨行
+    if (lineIndex + 1 < doc.lineCount) {
+      const nextLine = doc.lineAt(lineIndex + 1).text.trim();
+      if (directHookPattern.test(s + ' ' + nextLine)) {
+        return true;
+      }
+    }
+
     if (commentPattern.test(s)) return false;
     if (controlFlowPattern.test(s)) return false;
     
@@ -386,20 +759,29 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
     const complexFunctionPattern = /^\s*[A-Za-z_$][\w$]*\??\s*:\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*<[^>]*>/;
     if (complexFunctionPattern.test(s)) return false;
     
-    // 检查是否在 TypeScript 接口/类型定义块内（需要过滤掉）
+    // 检查是否在 TypeScript 接口/类型定义块内
     // 向上查找是否在 interface/type 块内
-    let inTypeDefinition = false;
-    for (let j = lineIndex - 1; j >= 0 && j >= lineIndex - 10; j--) {
-      const prevLine = doc.lineAt(j).text.trim();
-      if (prevLine.includes('}') && !prevLine.includes('{')) {
-        break; // 遇到结束大括号，不在类型定义内
-      }
-      if (prevLine.match(/^\s*(type|interface|enum|namespace)\s+[A-Za-z_$][\w$]*/) && prevLine.includes('{')) {
-        inTypeDefinition = true;
-        break;
-      }
-    }
-    if (inTypeDefinition) return false;
+let inTypeDefinition = false;
+for (let j = lineIndex - 1; j >= 0 && j >= lineIndex - 10; j--) {
+  const prevLine = doc.lineAt(j).text.trim();
+  
+  // 如果遇到函数体开始（箭头函数或普通函数），停止检查
+  if (/\)\s*=>\s*\{/.test(prevLine) || /\bfunction\s*\([^)]*\)\s*\{/.test(prevLine)) {
+    break;
+  }
+  
+  // 如果遇到闭合大括号，停止检查
+  if (prevLine.includes('}') && !prevLine.includes('{')) {
+    break;
+  }
+  
+  // 只有明确的类型定义开头才算
+  if (prevLine.match(/^\s*(type|interface|enum|namespace)\s+[A-Za-z_$][\w$]*\s*=?\s*\{/) && !prevLine.includes('=>')) {
+    inTypeDefinition = true;
+    break;
+  }
+}
+if (inTypeDefinition) return false;
     
     // 检查是否是导出的大组件函数（需要过滤掉）
     // 匹配: export default function ComponentName 或 export const ComponentName = 
@@ -433,22 +815,16 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
         return false;
       }
     }
-    
-    return (
-      functionPattern.test(s) ||
-      constArrowPattern.test(s) ||
-      assignArrowPattern.test(s) ||
-      genericArrowPattern.test(s) ||
-      methodPattern.test(s) ||
-      objectMethodPattern.test(s) ||
-      hookCallPattern.test(s) ||
-      hookAssignedPattern.test(s) ||
-      assignedWithCallbackPattern.test(s)
-    );
+    return false;
   };
 
   for (let i = 0; i < doc.lineCount; i++) {
     const text = doc.lineAt(i).text;
+     // 🔥 调试：检测 useEffect
+      if (text.includes('useEffect')) {
+        const result = maybeFuncStart(text, i);
+      }
+
     if (!maybeFuncStart(text, i)) continue;
 
     // 查找第一个 '{'
@@ -638,75 +1014,6 @@ async function preloadTranslations(doc: vscode.TextDocument, ranges: vscode.Rang
   }
 }
 
-/** 渲染函数左侧条（不同函数不同颜色；仅左侧，不涂背景） */
-// export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vscode.Range[]) {
-//   const doc = editor.document;
-
-//   // 性能检查：跳过过大的文件
-//   if (doc.lineCount > 10000) return;
-
-//   const all = computeFunctionRanges(doc);
-//   const visible = filterOutSuppressed(all, suppress);
-//   const codeOnly = keepCodeOnly(doc, visible);
-
-//   // 在后台预加载翻译（不阻塞渲染）
-//   preloadTranslations(doc, all).catch(err => {
-//     console.debug('预加载翻译失败', err);
-//   });
-
-//   // 清空旧的
-//   stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
-
-//   // 分配颜色并设置装饰
-//   const groups = new Map<vscode.TextEditorDecorationType, vscode.Range[]>();
-//   const colorScheme = getColorScheme();
-  
-//   codeOnly.forEach((r) => {
-//     const functionType = getFunctionType(doc, r.start.line);
-    
-//     // 跳过 JSX 内联函数和数组回调函数
-//     if (functionType === 'jsx-inline' || functionType === 'array-callback') {
-//       return;
-//     }
-    
-//     const color = colorScheme[functionType] || colorScheme['default'];
-//     const dt = getLeftStripeDecoration(color);
-//     if (!groups.has(dt)) groups.set(dt, []);
-//     groups.get(dt)!.push(r);
-//   });
-
-//   groups.forEach((ranges, dt) => editor.setDecorations(dt, ranges));
-
-//   // 中文语义化注释（受配置控制）
-//   const config = vscode.workspace.getConfiguration('codehue');
-//   const enableSemanticComments = config.get<boolean>('enableSemanticComments', true);
-  
-//   const annotations: vscode.DecorationOptions[] = [];
-
-//   if (enableSemanticComments) {
-//     for (const r of all) {
-//       const line = r.start.line;
-//       const chineseLabel = extractFunctionLabel(doc, line);
-      
-//       const targetLine = line > 0 ? line - 1 : line;
-//       const targetPos = doc.lineAt(targetLine).range.end;
-//       annotations.push({
-//         range: new vscode.Range(targetPos, targetPos),
-//         renderOptions: { after: { contentText: ` // ${chineseLabel}` } }
-//       });
-//     }
-
-//     // 整段被注释掉的函数
-//     const commented = findCommentedOutFunctionNotes(doc);
-//     const usedLines = new Set(annotations.map(a => a.range.start.line));
-//     for (const c of commented) {
-//       if (!usedLines.has(c.range.start.line)) annotations.push(c);
-//     }
-//   }
-
-//   editor.setDecorations(annotationType, annotations);
-// }
-
 export function refreshFunctionDecorations() {
   // 留空，真正刷新在 extension.ts 里通过 applyAll 触发
 }
@@ -845,12 +1152,6 @@ async function preloadTranslationsWithPriority(
       }
     }
   }
-
-  console.log(`📊 翻译队列统计 [${doc.fileName}]:`);
-  console.log(`  - 可见区域: ${visibleFunctions.length} 个函数`);
-  console.log(`  - 不可见区域: ${invisibleFunctions.length} 个函数`);
-  console.log(`  - 其他文件: ${otherFileFunctions.length} 个函数`);
-
   // 按优先级依次加载
   const allPromises: Promise<any>[] = [];
 
@@ -880,7 +1181,7 @@ async function preloadTranslationsWithPriority(
 
   // 不等待完成，让翻译在后台异步进行
   Promise.allSettled(allPromises).then(() => {
-    console.log(`✓ 完成翻译请求提交 [${doc.fileName}]`);
+    // console.log(`✓ 完成翻译请求提交 [${doc.fileName}]`);
   });
 }
 
@@ -893,7 +1194,7 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
 
   const all = computeFunctionRanges(doc);
   const visible = filterOutSuppressed(all, suppress);
-  const codeOnly = keepCodeOnly(doc, visible);
+  const codeOnly = keepCodeOnly(doc, all);
 
   // 🔥 关键修改：使用带优先级的预加载函数
   preloadTranslationsWithPriority(editor, doc, all).catch(err => {
@@ -910,8 +1211,8 @@ export function applyFunctionDecorations(editor: vscode.TextEditor, suppress: vs
   codeOnly.forEach((r) => {
     const functionType = getFunctionType(doc, r.start.line);
     
-    // 跳过 JSX 内联函数和数组回调函数
-    if (functionType === 'jsx-inline' || functionType === 'array-callback') {
+  
+    if (functionType === 'jsx-inline' || functionType === 'array-callback' || functionType === 'ignore') {
       return;
     }
     
