@@ -376,6 +376,16 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
     const interfaceFunctionPattern = /^\s*[A-Za-z_$][\w$]*\??\s*:\s*\([^)]*\)\s*=>/;
     if (interfaceFunctionPattern.test(s)) return false;
     
+    // 检查是否是 TypeScript 接口/类型中的简单函数属性（需要过滤掉）
+    // 匹配: cancel?: () => void;
+    const simpleFunctionPattern = /^\s*[A-Za-z_$][\w$]*\??\s*:\s*\(\)\s*=>/;
+    if (simpleFunctionPattern.test(s)) return false;
+    
+    // 检查是否是 TypeScript 接口/类型中的复杂函数属性（需要过滤掉）
+    // 匹配: ref?: React.MutableRefObject<{ setIsShowExtNum: (visible: boolean) => void; clearAddress: () => void }>;
+    const complexFunctionPattern = /^\s*[A-Za-z_$][\w$]*\??\s*:\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*<[^>]*>/;
+    if (complexFunctionPattern.test(s)) return false;
+    
     // 检查是否在 TypeScript 接口/类型定义块内（需要过滤掉）
     // 向上查找是否在 interface/type 块内
     let inTypeDefinition = false;
@@ -390,6 +400,11 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
       }
     }
     if (inTypeDefinition) return false;
+    
+    // 检查是否是导出的大组件函数（需要过滤掉）
+    // 匹配: export default function ComponentName 或 export const ComponentName = 
+    // const exportComponentPattern = /^\s*export\s+(?:default\s+)?(?:function\s+([A-Z][A-Za-z_$]*)|(?:const|let|var)\s+([A-Z][A-Za-z_$]*)\s*=)/;
+    // if (exportComponentPattern.test(s)) return false;
     
     // 检查是否是 JSX 内联函数（需要过滤掉）
     const jsxEventPattern = /\b(onClick|onChange|onSubmit|onFocus|onBlur|onMouse|onKey|onLoad|onError|onScroll|onResize|onTouch|onInput|onSelect|onContextMenu|onDrag|onDrop|onWheel|onAnimation|onTransition|onClickItem|onClickStickItem|onOpenRightSwipe)\s*=\s*\{/i;
