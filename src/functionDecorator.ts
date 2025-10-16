@@ -363,6 +363,54 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
     if (commentPattern.test(s)) return false;
     if (controlFlowPattern.test(s)) return false;
     
+    // 检查是否是 TypeScript 类型定义（需要过滤掉）
+    const typeDefinitionPattern = /^\s*(type|interface|enum|namespace)\s+[A-Za-z_$][\w$]*/;
+    if (typeDefinitionPattern.test(s)) return false;
+    
+    // 检查是否是 TypeScript 类型别名中的函数类型（需要过滤掉）
+    const typeAliasPattern = /^\s*type\s+[A-Za-z_$][\w$]*\s*=\s*\([^)]*\)\s*=>/;
+    if (typeAliasPattern.test(s)) return false;
+    
+    // 检查是否是 TypeScript 接口/类型中的函数属性（需要过滤掉）
+    // 匹配: success?: (text: string, res: Components.Address.AnalysisResultType, isUseAI: boolean) => void;
+    const interfaceFunctionPattern = /^\s*[A-Za-z_$][\w$]*\??\s*:\s*\([^)]*\)\s*=>/;
+    if (interfaceFunctionPattern.test(s)) return false;
+    
+    // 检查是否在 TypeScript 接口/类型定义块内（需要过滤掉）
+    // 向上查找是否在 interface/type 块内
+    let inTypeDefinition = false;
+    for (let j = lineIndex - 1; j >= 0 && j >= lineIndex - 10; j--) {
+      const prevLine = doc.lineAt(j).text.trim();
+      if (prevLine.includes('}') && !prevLine.includes('{')) {
+        break; // 遇到结束大括号，不在类型定义内
+      }
+      if (prevLine.match(/^\s*(type|interface|enum|namespace)\s+[A-Za-z_$][\w$]*/) && prevLine.includes('{')) {
+        inTypeDefinition = true;
+        break;
+      }
+    }
+    if (inTypeDefinition) return false;
+    
+    // 检查是否是 JSX 内联函数（需要过滤掉）
+    const jsxEventPattern = /\b(onClick|onChange|onSubmit|onFocus|onBlur|onMouse|onKey|onLoad|onError|onScroll|onResize|onTouch|onInput|onSelect|onContextMenu|onDrag|onDrop|onWheel|onAnimation|onTransition|onClickItem|onClickStickItem|onOpenRightSwipe)\s*=\s*\{/i;
+    if (jsxEventPattern.test(s)) return false;
+    
+    // 检查是否是 JSX 属性中的函数引用（需要过滤掉）
+    const jsxFunctionRefPattern = /\b(onClick|onChange|onSubmit|onFocus|onBlur|onMouse|onKey|onLoad|onError|onScroll|onResize|onTouch|onInput|onSelect|onContextMenu|onDrag|onDrop|onWheel|onAnimation|onTransition|onClickItem|onClickStickItem|onOpenRightSwipe)\s*=\s*\{?[A-Za-z_$][\w$]*\}?/i;
+    if (jsxFunctionRefPattern.test(s)) return false;
+    
+    // 检查是否是 JSX 标签内的箭头函数（需要过滤掉）
+    const jsxArrowPattern = /^\s*\([^)]*\)\s*=>\s*[({]/;
+    if (jsxArrowPattern.test(s)) return false;
+    
+    // 检查是否是 JSX 标签内的异步箭头函数（需要过滤掉）
+    const jsxAsyncArrowPattern = /^\s*async\s*\([^)]*\)\s*=>\s*\{/;
+    if (jsxAsyncArrowPattern.test(s)) return false;
+    
+    // 检查是否是 JSX 标签内的回调函数（需要过滤掉）
+    const jsxCallbackPattern = /^\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\(\s*\([^)]*\)\s*=>\s*\{/;
+    if (jsxCallbackPattern.test(s)) return false;
+    
     // 如果匹配到 genericArrowPattern，需要额外检查是否是数组方法链式调用
     if (genericArrowPattern.test(s)) {
       // 检查是否是数组方法的回调
@@ -449,21 +497,11 @@ export function computeFunctionRanges(doc: vscode.TextDocument): vscode.Range[] 
   return result;
 }
 
-/** 父级优先：去掉被完全包裹的内层函数 */
+/** 保留嵌套函数：不去掉被包裹的内层函数 */
 function dropNested(ranges: vscode.Range[]): vscode.Range[] {
-  const sorted = ranges.slice().sort((a, b) =>
-    a.start.line - b.start.line || a.end.line - b.end.line
-  );
-  const out: vscode.Range[] = [];
-  for (const r of sorted) {
-    while (out.length &&
-           r.start.isAfterOrEqual(out[out.length - 1].start) &&
-           r.end.isBeforeOrEqual(out[out.length - 1].end)) {
-      out.pop();
-    }
-    out.push(r);
-  }
-  return out;
+  // 直接返回所有函数范围，不进行嵌套过滤
+  // 这样可以让嵌套的函数（如 useEffect 内的箭头函数）也被识别
+  return ranges;
 }
 
 /** Region 抑制：在 suppress 段内的部分全部裁掉 */
