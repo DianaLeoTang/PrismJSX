@@ -61,17 +61,17 @@ const HOOK_KEYWORDS = [
   'useState',
   'useMemo',
   'useCallback',
-  'useRef',
-  'useReducer',
-  'useLayoutEffect',
-  'useContext',
-  'useImperativeHandle',
-  'useDebugValue',
-  'useDeferredValue',
-  'useTransition',
-  'useId',
-  'useSyncExternalStore',
-  'useInsertionEffect'
+  // 'useRef',
+  // 'useReducer',
+  // 'useLayoutEffect',
+  // 'useContext',
+  // 'useImperativeHandle',
+  // 'useDebugValue',
+  // 'useDeferredValue',
+  // 'useTransition',
+  // 'useId',
+  // 'useSyncExternalStore',
+  // 'useInsertionEffect'
 ] as const;
 
 type HookKeyword = typeof HOOK_KEYWORDS[number];
