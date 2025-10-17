@@ -78,6 +78,10 @@ function getLeftStripeDecoration(color: string): vscode.TextEditorDecorationType
  * 严格检测 Hook 调用
  * 确保是真正的 React Hook，不是对象方法或类型定义
  */
+/**
+ * 严格检测 Hook 调用
+ * 确保是真正的 React Hook，不是对象方法或类型定义
+ */
 function detectHookCall(text: string): HookKeyword | undefined {
   // 移除注释和多余空白，但保持基本结构
   const normalized = text
@@ -91,32 +95,33 @@ function detectHookCall(text: string): HookKeyword | undefined {
     .replace(/\s+/g, ' ')
     .trim();
 
-  for (const hook of HOOK_KEYWORDS) {
-    // Hook 必须满足：
-    // 1. 行首、空白、赋值、return 之后
-    // 2. 可选 React. 前缀
-    // 3. 后面紧跟 (
-    // 4. 前面不能有点号（排除对象方法）
+  // 避免空行或只有注释的行
+  if (normalized.length === 0) {
+      return undefined;
+  }
 
+  for (const hook of HOOK_KEYWORDS) {
+    /*
+     * 优化后的正则逻辑：
+     * 1. (?:^|[=\\s]|return\\s|\\(|\\{|\\[): 匹配：行首(^)、等号(=)、空白(\\s)、return、开括号/对象/数组([{\\[)
+     * 2. (?:React\\.)?: 可选的 React. 前缀
+     * 3. (${hook}): Hook 名称
+     * 4. \\s*(?:<[^>]*>)?\\s*\\(: Hook 名称后跟：可选空白、可选泛型（<...>?）、可选空白、开括号 (
+     * 5. 注意：这个正则是在归一化后的单行文本上匹配的。
+     */
     const pattern = new RegExp(
-      `(?:^|\\s|=|return\\s)` +        // 前缀：行首、空白、赋值、return
-      `(?:React\\.)?` +                // 可选 React.
-      `(${hook})\\s*\\(`,              // Hook 名 + (
+      // 关键：负向先行断言确保 Hook 前面不能有点号，排除对象方法，同时前面必须是正确的开始符号
+      `(?:^|[^.])(?:[=\\s]|return\\s|\\(|\\{|\\[|;)\\s*` +  // 前缀：行首、非点号、等号/空白/return/括号/分号
+      `(?:React\\.)?` +                      // 可选 React.
+      `(${hook})\\s*(?:<[^>]*>)?\\s*\\(`,    // Hook 名 + 可选类型注解 + (
       'i'
     );
 
     const match = normalized.match(pattern);
-    if (!match) continue;
-
-    // 检查 Hook 前面是否有点号
-    const hookPos = match.index! + match[0].indexOf(hook);
-    const beforeHook = normalized.substring(0, hookPos).trimEnd();
-
-    if (beforeHook.endsWith('.')) {
-      continue;  // 对象方法，排除
+    if (match) {
+        // 由于使用了非点号断言 `(?:^|[^.])` 并且匹配了正确的起始符号，所以这里可以直接返回。
+        return hook as HookKeyword;
     }
-
-    return hook as HookKeyword;
   }
 
   return undefined;
@@ -128,20 +133,32 @@ function detectHookCall(text: string): HookKeyword | undefined {
 function isHookCallLine(doc: vscode.TextDocument, lineIndex: number): HookKeyword | undefined {
   const line = doc.lineAt(lineIndex).text;
 
-  // 直接检查当前行
-  const directHook = detectHookCall(line);
-  if (directHook) {
-    return directHook;
+  // 1. 直接检查当前行
+  let hook = detectHookCall(line);
+  if (hook) {
+    return hook;
   }
 
-  // 检查当前行 + 下一行（处理跨行情况）
-  if (lineIndex + 1 < doc.lineCount) {
-    const nextLine = doc.lineAt(lineIndex + 1).text;
-    const combined = `${line} ${nextLine}`;
-    const crossLineHook = detectHookCall(combined);
-    if (crossLineHook) {
-      return crossLineHook;
-    }
+  // 2. 检查跨行情况：如果当前行以 Hook 的一部分开头，例如 `const a = useMemo`
+  //    但 Hook 的开括号在下一行，例如 `(`
+  const trimmed = line.trim();
+  const lastChar = trimmed.slice(-1);
+
+  // 如果当前行不是以 Hook 开头，或者不以 =,{,[,( 结尾，通常不需要检查下一行
+  if (!HOOK_KEYWORDS.some(h => trimmed.includes(h)) || ['=', '{', '[', '(', ';'].includes(lastChar)) {
+      // 允许更多行跨行情况，我们检查当前行和下一行
+      if (lineIndex + 1 < doc.lineCount) {
+        const nextLine = doc.lineAt(lineIndex + 1).text;
+        const combined = `${line} ${nextLine}`;
+        hook = detectHookCall(combined);
+        if (hook) {
+          // 确保 Hook 名称在第一行
+          const hookIndexInCombined = combined.indexOf(hook);
+          if (hookIndexInCombined < line.length) {
+              return hook;
+          }
+        }
+      }
   }
 
   return undefined;
