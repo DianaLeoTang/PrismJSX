@@ -155,14 +155,15 @@ function detectHookCall(text: string): HookKeyword | undefined {
 
 /**
  * 检查某行是否是 Hook 调用 (增强版)
+ * 返回 { hook: HookKeyword, actualLine: number } 或 undefined
  */
-function isHookCallLine(doc: vscode.TextDocument, lineIndex: number): HookKeyword | undefined {
+function isHookCallLine(doc: vscode.TextDocument, lineIndex: number): { hook: HookKeyword; actualLine: number } | undefined {
   const line = doc.lineAt(lineIndex).text;
 
   // 1. 直接检查当前行
   let hook = detectHookCall(line);
   if (hook) {
-    return hook;
+    return { hook, actualLine: lineIndex };
   }
 
   // 2. 检查跨行情况：合并当前行和接下来的几行
@@ -180,13 +181,23 @@ function isHookCallLine(doc: vscode.TextDocument, lineIndex: number): HookKeywor
     hook = detectHookCall(combined);
 
     if (hook) {
-      // 确保 Hook 名称在第一行或紧接着的行中
+      // 找到 Hook 在合并文本中的位置
       const hookIndex = combined.toLowerCase().indexOf(hook.toLowerCase());
-      const firstLinesLength = lines.slice(0, Math.min(2, lines.length)).join(' ').length;
       
-      if (hookIndex < firstLinesLength) {
-        return hook;
+      // 计算 Hook 实际在哪一行
+      let currentPos = 0;
+      let actualLine = lineIndex;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const lineLength = lines[i].length + 1; // +1 for the space we added
+        if (hookIndex < currentPos + lineLength) {
+          actualLine = lineIndex + i;
+          break;
+        }
+        currentPos += lineLength;
       }
+      
+      return { hook, actualLine };
     }
   }
 
@@ -194,17 +205,30 @@ function isHookCallLine(doc: vscode.TextDocument, lineIndex: number): HookKeywor
 }
 
 /**
- * 计算 Hook 调用的范围（从开括号到闭括号）
+ * 计算 Hook 调用的范围（从 Hook 名称开始到闭括号）
  */
-function getHookCallRange(doc: vscode.TextDocument, startLine: number): vscode.Range | null {
+function getHookCallRange(doc: vscode.TextDocument, startLine: number, hookName: string): vscode.Range | null {
   let line = startLine;
   let text = doc.lineAt(line).text;
 
-  // 查找第一个 (
-  let parenPos = text.indexOf('(');
-  while (parenPos === -1 && line < doc.lineCount - 1) {
-    line++;
-    text = doc.lineAt(line).text;
+  // 首先找到 Hook 名称的位置
+  let hookPos = text.toLowerCase().indexOf(hookName.toLowerCase());
+  let hookLine = line;
+  
+  // 如果当前行没有找到 Hook，向前查找
+  while (hookPos === -1 && hookLine < doc.lineCount - 1) {
+    hookLine++;
+    text = doc.lineAt(hookLine).text;
+    hookPos = text.toLowerCase().indexOf(hookName.toLowerCase());
+  }
+
+  if (hookPos === -1) return null;
+
+  // 从 Hook 名称开始查找第一个 (
+  let parenPos = text.indexOf('(', hookPos);
+  while (parenPos === -1 && hookLine < doc.lineCount - 1) {
+    hookLine++;
+    text = doc.lineAt(hookLine).text;
     parenPos = text.indexOf('(');
   }
 
@@ -212,7 +236,7 @@ function getHookCallRange(doc: vscode.TextDocument, startLine: number): vscode.R
 
   // 从这个 ( 开始计数，找到匹配的 )
   let openCount = 0;
-  let currentLine = line;
+  let currentLine = hookLine;
   let currentPos = parenPos;
 
   while (currentLine < doc.lineCount) {
@@ -226,7 +250,7 @@ function getHookCallRange(doc: vscode.TextDocument, startLine: number): vscode.R
         if (openCount === 0) {
           // 找到了匹配的闭括号
           return new vscode.Range(
-            new vscode.Position(startLine, 0),
+            new vscode.Position(hookLine, hookPos),
             new vscode.Position(currentLine, i + 1)
           );
         }
@@ -254,10 +278,11 @@ function findHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
     const trimmed = line.trim();
 
     // ===== 检测 React Hooks =====
-    const hook = isHookCallLine(doc, i);
-    if (hook) {
-      console.log(`🔍 检测到 Hook: ${hook} 在第 ${i + 1} 行: ${trimmed}`);
-      const range = getHookCallRange(doc, i);
+    const hookResult = isHookCallLine(doc, i);
+    if (hookResult) {
+      const { hook, actualLine } = hookResult;
+      console.log(`🔍 检测到 Hook: ${hook} 在第 ${actualLine + 1} 行: ${trimmed}`);
+      const range = getHookCallRange(doc, actualLine, hook);
       if (range) {
         console.log(`📍 Hook 范围: 行 ${range.start.line + 1}-${range.end.line + 1}`);
         
