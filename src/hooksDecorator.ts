@@ -392,8 +392,10 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
 
   console.log(`🎨 应用装饰: ${groups.size} 种类型`);
   for (const [type, ranges] of groups) {
-    const color = colorScheme[type] || colorScheme['default'];
-    console.log(`  - ${type}: ${ranges.length} 个范围, 颜色: ${color}`);
+    // 将 Hook 类型转换为小写以匹配颜色配置
+    const colorKey = type.toLowerCase();
+    const color = colorScheme[colorKey] || colorScheme['default'];
+    console.log(`  - ${type} (${colorKey}): ${ranges.length} 个范围, 颜色: ${color}`);
     const dt = getLeftStripeDecoration(color);
     editor.setDecorations(dt, ranges);
   }
