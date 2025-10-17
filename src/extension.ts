@@ -149,7 +149,6 @@ export function activate(context: vscode.ExtensionContext) {
       const ed = vscode.window.activeTextEditor;
       if (ed) {
         console.log('[INFO] 手动刷新');
-        refreshFunctionDecorations();
         applyAll(ed, true); // 强制刷新
       }
     })

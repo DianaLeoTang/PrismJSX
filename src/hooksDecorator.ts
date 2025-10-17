@@ -21,6 +21,9 @@ const annotationType = vscode.window.createTextEditorDecorationType({
 /** Hook 和 Region 识别缓存 */
 const itemCache = new Map<string, { items: DecoratedItem[]; version: number }>();
 
+/** 防重复执行标志 */
+let isApplyingDecorations = false;
+
 interface DecoratedItem {
   range: vscode.Range;
   type: 'useState' | 'useEffect' | 'useMemo' | 'useCallback' | 'region';
@@ -368,15 +371,24 @@ function getHookChineseLabel(hookType: string): string {
  * 应用 Hooks 和 Regions 的装饰
  */
 export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void {
-  const doc = editor.document;
-
-  console.log(`🎨 开始应用 Hook 装饰: ${doc.fileName}`);
-
-  // 性能检查
-  if (doc.lineCount > 10000) {
-    console.log(`⚠️ 文件过大，跳过: ${doc.lineCount} 行`);
+  // 防重复执行
+  if (isApplyingDecorations) {
+    console.log(`⏸️ 装饰器正在执行中，跳过重复调用`);
     return;
   }
+  
+  isApplyingDecorations = true;
+  
+  try {
+    const doc = editor.document;
+
+    console.log(`🎨 开始应用 Hook 装饰: ${doc.fileName}`);
+
+    // 性能检查
+    if (doc.lineCount > 10000) {
+      console.log(`⚠️ 文件过大，跳过: ${doc.lineCount} 行`);
+      return;
+    }
 
   // 获取缓存或计算
   const docUri = doc.uri.toString();
@@ -403,6 +415,8 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
 
   // 清除旧装饰
   stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
+  // 清除旧的注释装饰
+  editor.setDecorations(annotationType, []);
 
   // 按类型分组并应用颜色
   const groups = new Map<string, vscode.Range[]>();
@@ -432,6 +446,9 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
   const annotations: vscode.DecorationOptions[] = [];
 
   if (enableSemanticComments) {
+    // 使用 Map 来去重，key 为 "行号:位置"
+    const annotationMap = new Map<string, string>();
+    
     for (const item of items) {
       if (item.type === 'region') continue;  // region 不需要额外注释
 
@@ -441,12 +458,28 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
       // 在前一行的末尾添加注释
       const targetLine = line > 0 ? line - 1 : line;
       const targetPos = doc.lineAt(targetLine).range.end;
-
+      
+      // 使用行号和位置作为唯一标识
+      const key = `${targetLine}:${targetPos.character}`;
+      
+      // 如果已经存在注释，则合并（或者跳过重复）
+      if (!annotationMap.has(key)) {
+        annotationMap.set(key, chineseLabel);
+      }
+    }
+    
+    // 根据去重后的 Map 生成注释
+    for (const [key, label] of annotationMap) {
+      const [lineStr, charStr] = key.split(':');
+      const line = parseInt(lineStr);
+      const char = parseInt(charStr);
+      const targetPos = new vscode.Position(line, char);
+      
       annotations.push({
         range: new vscode.Range(targetPos, targetPos),
         renderOptions: {
           after: {
-            contentText: ` // ${chineseLabel}`,
+            contentText: ` // ${label}`,
           },
         },
       });
@@ -454,6 +487,10 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
   }
 
   editor.setDecorations(annotationType, annotations);
+  
+  } finally {
+    isApplyingDecorations = false;
+  }
 }
 
 /**
