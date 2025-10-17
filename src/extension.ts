@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
-import { applyFunctionDecorations, disposeFunctionDecorations, refreshFunctionDecorations } from './functionDecorator';
-import { applyRegionDecorations, disposeRegionDecorations, getRegionSuppressionRanges, onRegionsChanged } from './regionDecorator';
+import { disposeFunctionDecorations, refreshFunctionDecorations } from './functionDecorator';
+import { applyRegionDecorations, disposeRegionDecorations,  onRegionsChanged } from './regionDecorator';
 import { clearTranslationCache, setTranslationCompleteCallback, initializeCache } from './semanticTranslator';
-
+import { applyHooksAndRegionsDecorations } from './hooksDecorator'
 // 防抖定时器
 let debounceTimer: NodeJS.Timeout | undefined;
 
@@ -33,7 +33,7 @@ function applyAll(editor: vscode.TextEditor, force = false) {
   // 先渲染 region（也会计算并发布 suppress 范围）
   applyRegionDecorations(editor);
   // 再渲染函数，并对 region 进行相减
-  applyFunctionDecorations(editor, getRegionSuppressionRanges());
+  applyHooksAndRegionsDecorations(editor);
   
   // 记录已处理的版本
   lastProcessedVersion.set(docUri, docVersion);
