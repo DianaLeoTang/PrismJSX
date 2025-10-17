@@ -398,7 +398,7 @@ export function computeFunctionRangesOptimized(doc: vscode.TextDocument): vscode
   const exclusionZones = computeAllExclusionZones(doc);
   
   exclusionZones.forEach(zone => {
-    // console.log(`  - ${zone.type}: ${zone.reason} (行 ${zone.range.start.line + 1}-${zone.range.end.line + 1})`);
+    // 排除区域处理
   });
   
   // 2. 使用原有逻辑识别所有可能的函数
@@ -413,7 +413,6 @@ export function computeFunctionRangesOptimized(doc: vscode.TextDocument): vscode
     return !inExclusion;
   });
   
-  console.log(`✓ 最终识别 ${filteredRanges.length} 个有效函数 (排除了 ${allRanges.length - filteredRanges.length} 个)`);
   
   return filteredRanges;
 }
@@ -1181,6 +1180,6 @@ async function preloadTranslationsWithPriority(
 
   // 不等待完成，让翻译在后台异步进行
   Promise.allSettled(allPromises).then(() => {
-    // console.log(`✓ 完成翻译请求提交 [${doc.fileName}]`);
+    // 翻译请求提交完成
   });
 }

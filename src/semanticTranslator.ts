@@ -74,7 +74,6 @@ async function loadCacheFromDisk(): Promise<void> {
       translationCache.set(key, value as string);
     });
     
-    console.log(`✓ 加载了 ${translationCache.size} 条翻译缓存`);
   } catch (error) {
     // 缓存文件不存在，忽略
   }
@@ -152,7 +151,6 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
     } else {
       translationPaused = false;
       consecutiveErrors = 0;
-      console.log('✓ 翻译服务恢复');
     }
   }
 
@@ -233,7 +231,6 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
     });
     
     consecutiveErrors = 0;
-    console.log(`✓ 成功翻译 ${functionNames.length} 个函数名`);
     
     return results;
   } catch (error: any) {
@@ -256,7 +253,6 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
     if (error.code === 'ECONNRESET' || error.message?.includes('socket hang up')) {
       if (retryCount < MAX_RETRIES) {
         const waitTime = 5000 * Math.pow(2, retryCount);
-        console.log(`⚠ 网络错误，${waitTime / 1000} 秒后重试...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         return translateBatch(functionNames, retryCount + 1);
       }
@@ -287,7 +283,6 @@ async function processBatchQueue(): Promise<void> {
     while (translationQueue.length > 0) {
       // 检查是否暂停
       if (translationPaused && Date.now() < pauseUntil) {
-        console.log('⏸ 翻译服务暂停中...');
         await new Promise(resolve => setTimeout(resolve, 5000));
         continue;
       }
@@ -323,9 +318,6 @@ async function processBatchQueue(): Promise<void> {
       
       const functionNames = batch.map(task => task.functionName);
       
-      // 日志显示正在处理的优先级
-      const priorityName = ['当前文件可见区域', '当前文件其他区域', '其他打开文件'][highestPriority];
-      console.log(`→ 正在翻译【${priorityName}】的 ${functionNames.length} 个函数名...`);
       
       activeRequests++;
 
@@ -362,7 +354,6 @@ async function processBatchQueue(): Promise<void> {
         // 如果下一批是低优先级，增加延迟
         const nextPriority = translationQueue[0]?.priority;
         if (nextPriority > highestPriority) {
-          console.log(`⏱ 切换到【${['当前文件可见区域', '当前文件其他区域', '其他打开文件'][nextPriority]}】，等待2秒...`);
           await new Promise(resolve => setTimeout(resolve, 2000));
         } else {
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -372,7 +363,6 @@ async function processBatchQueue(): Promise<void> {
   } finally {
     processingBatch = false;
     await saveCacheToDisk();
-    console.log('✓ 翻译队列处理完成');
   }
 }
 
@@ -392,7 +382,6 @@ async function translateWithAI(
       if (priority < existing.priority) {
         existing.priority = priority;
         existing.timestamp = Date.now(); // 更新时间戳
-        console.log(`↑ 提升 "${functionName}" 的翻译优先级到 ${priority}`);
       }
       return; // 已在队列中
     }

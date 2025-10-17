@@ -26,7 +26,6 @@ function applyAll(editor: vscode.TextEditor, force = false) {
   
   // 性能检查：跳过过大的文件
   if (editor.document.lineCount > MAX_FILE_LINES) {
-    console.log(`跳过过大文件: ${editor.document.fileName} (${editor.document.lineCount} 行)`);
     return;
   }
   
@@ -60,17 +59,13 @@ function applyAllDebounced(editor: vscode.TextEditor, force = false) {
 
 // 激活扩展
 export function activate(context: vscode.ExtensionContext) {
-  console.log('[INFO] CodeHue 扩展开始激活...');
-  
   // 🔥 关键修改1：初始化翻译缓存系统（加载持久化缓存）
   initializeCache(context);
-  console.log('[INFO] 翻译缓存已初始化');
   
   // 设置翻译完成回调：翻译完成后刷新界面
   setTranslationCompleteCallback(() => {
     const ed = vscode.window.activeTextEditor;
     if (ed) {
-      console.log('[INFO] 翻译完成，刷新界面');
       applyAllDebounced(ed, true); // 强制刷新，确保显示最新翻译
     }
   });
@@ -81,7 +76,6 @@ export function activate(context: vscode.ExtensionContext) {
     if (isCodeFile(doc)) {
       const editor = vscode.window.visibleTextEditors.find(e => e.document === doc);
       if (editor) {
-        console.log(`[INFO] 处理已打开的文档: ${doc.fileName}`);
         applyAll(editor);
       }
     }
@@ -89,7 +83,6 @@ export function activate(context: vscode.ExtensionContext) {
 
   // 首次启动对激活编辑器应用
   if (vscode.window.activeTextEditor) {
-    console.log('[INFO] 处理当前活动编辑器');
     applyAll(vscode.window.activeTextEditor);
   }
 
@@ -97,7 +90,6 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((ed) => {
       if (ed) {
-        console.log(`[INFO] 切换到编辑器: ${ed.document.fileName}`);
         applyAll(ed);
       }
     })
@@ -106,7 +98,6 @@ export function activate(context: vscode.ExtensionContext) {
   // 🔥 关键修改3：监听可见区域变化（滚动时优先翻译可见区域）
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
-      console.log(`[INFO] 可见区域变化: ${event.textEditor.document.fileName}`);
       // 可见区域变化时重新应用装饰，会触发优先级更高的翻译
       applyAllDebounced(event.textEditor, true);
     })
@@ -116,7 +107,6 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument((doc) => {
       if (isCodeFile(doc)) {
-        console.log(`[INFO] 文档打开: ${doc.fileName}`);
         const editor = vscode.window.visibleTextEditors.find(e => e.document === doc);
         if (editor) {
           applyAll(editor);
@@ -148,7 +138,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('codehue.refresh', () => {
       const ed = vscode.window.activeTextEditor;
       if (ed) {
-        console.log('[INFO] 手动刷新');
         applyAll(ed, true); // 强制刷新
       }
     })
@@ -157,7 +146,6 @@ export function activate(context: vscode.ExtensionContext) {
   // 清空翻译缓存命令
   context.subscriptions.push(
     vscode.commands.registerCommand('codehue.clearCache', () => {
-      console.log('[INFO] 清空翻译缓存');
       clearTranslationCache();
       vscode.window.showInformationMessage('翻译缓存已清空');
       const ed = vscode.window.activeTextEditor;
@@ -177,8 +165,6 @@ export function activate(context: vscode.ExtensionContext) {
       disposeAll();
     }
   });
-  
-  console.log('[INFO] CodeHue 扩展激活完成！');
 }
 
 // 🔥 新增：判断是否是代码文件
@@ -199,6 +185,5 @@ function disposeAll() {
 
 // 停用扩展
 export function deactivate() {
-  console.log('[INFO] CodeHue 扩展停用');
   disposeAll();
 }
