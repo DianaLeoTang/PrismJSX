@@ -284,10 +284,8 @@ function findHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
     const hookResult = isHookCallLine(doc, i);
     if (hookResult) {
       const { hook, actualLine } = hookResult;
-      console.log(`🔍 检测到 Hook: ${hook} 在第 ${actualLine + 1} 行: ${trimmed}`);
       const range = getHookCallRange(doc, actualLine, hook);
       if (range) {
-        console.log(`📍 Hook 范围: 行 ${range.start.line + 1}-${range.end.line + 1}`);
         
         // 检查是否在排除区域内
         const isInSuppressedRange = suppressRanges.some(suppressRange => {
@@ -295,22 +293,17 @@ function findHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
         });
 
         if (!isInSuppressedRange) {
-          console.log(`✅ 添加 Hook 装饰: ${hook}`);
           items.push({
             range,
             type: hook,
             lineContent: trimmed,
           });
-        } else {
-          console.log(`❌ Hook 被排除区域过滤: ${hook}`);
         }
 
         // 标记已处理的行
         for (let j = range.start.line; j <= range.end.line; j++) {
           processed.add(j);
         }
-      } else {
-        console.log(`❌ 无法获取 Hook 范围: ${hook}`);
       }
       continue;
     }
@@ -373,7 +366,6 @@ function getHookChineseLabel(hookType: string): string {
 export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void {
   // 防重复执行
   if (isApplyingDecorations) {
-    console.log(`⏸️ 装饰器正在执行中，跳过重复调用`);
     return;
   }
   
@@ -382,11 +374,8 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
   try {
     const doc = editor.document;
 
-    console.log(`🎨 开始应用 Hook 装饰: ${doc.fileName}`);
-
     // 性能检查
     if (doc.lineCount > 10000) {
-      console.log(`⚠️ 文件过大，跳过: ${doc.lineCount} 行`);
       return;
     }
 
@@ -398,12 +387,9 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
 
   const cached = itemCache.get(docUri);
   if (cached && cached.version === docVersion) {
-    console.log(`📦 使用缓存: ${cached.items.length} 个 Hook`);
     items = cached.items;
   } else {
-    console.log(`🔍 重新计算 Hook 装饰...`);
     items = findHooksAndRegions(doc);
-    console.log(`📊 找到 ${items.length} 个 Hook/Region`);
     itemCache.set(docUri, { items, version: docVersion });
 
     // 限制缓存大小
@@ -429,12 +415,10 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
     groups.get(item.type)!.push(item.range);
   }
 
-  console.log(`🎨 应用装饰: ${groups.size} 种类型`);
   for (const [type, ranges] of groups) {
     // 将 Hook 类型转换为小写以匹配颜色配置
     const colorKey = type.toLowerCase();
     const color = colorScheme[colorKey] || colorScheme['default'];
-    console.log(`  - ${type} (${colorKey}): ${ranges.length} 个范围, 颜色: ${color}`);
     const dt = getLeftStripeDecoration(color);
     editor.setDecorations(dt, ranges);
   }
