@@ -77,10 +77,9 @@ function getLeftStripeDecoration(color: string): vscode.TextEditorDecorationType
 /**
  * 严格检测 Hook 调用
  * 确保是真正的 React Hook，不是对象方法或类型定义
- * 注意：此函数在经过归一化（去除注释、多余空白）的文本上运行
  */
 function detectHookCall(text: string): HookKeyword | undefined {
-  // 移除注释和多余空白，但保持基本结构
+  // --- 步骤 1: 文本归一化 ---
   const normalized = text
     .split('\n')
     .map(line => {
@@ -92,35 +91,61 @@ function detectHookCall(text: string): HookKeyword | undefined {
     .replace(/\s+/g, ' ')
     .trim();
 
-  // 避免空行或只有注释的行
   if (normalized.length === 0) {
       return undefined;
   }
 
+  // --- 步骤 2: 遍历所有 Hook 并匹配 ---
   for (const hook of HOOK_KEYWORDS) {
-    /*
-     * 增强后的正则逻辑：
-     * 目标：匹配 [前缀] [React.]HookName[<Type>] (
-     * 1. (?:^|[^.]): 确保匹配到的 Hook 前面不是点号（排除对象方法），或在行首。
-     * 2. (?:[=\\s]|return\\s|\\(|\\{|\\[|;): Hook 前的合法起始符号：等号、空白、return、各种开括号、分号。
-     * 3. \\s*: 可选的空白。
-     * 4. (?:React\\.)?: 可选的 React. 前缀。
-     * 5. (${hook}): Hook 名称。
-     * 6. \\s*(?:<[^>]*>)?\\s*\\(: Hook 名称后跟：可选空白、可选泛型（<...>?）、可选空白、开括号 (。
-     */
-    const pattern = new RegExp(
-      `(?:^|[^.])` +                                  // 前面不是点号或在行首
-      `(?:[=\\s]|return\\s|\\(|\\{|\\[|;)` +          // 合法的起始符号
-      `\\s*` +                                        // 可选空白
-      `(?:React\\.)?` +                              // 可选 React.
-      `(${hook})` +                                  // Hook 名称
-      `\\s*(?:<[^>]*>)?\\s*\\(`,                     // 可选泛型和开括号
-      'i' // 不区分大小写
-    );
+    let pattern: RegExp;
 
+    // --- 针对 useEffect 的专属宽松规则 ---
+    if (hook === 'useEffect') {
+      /*
+       * useEffect 专属规则：
+       * 匹配：(行首 或 非点号前缀) 后面跟着 零个或多个空白/分号，然后是 HookName(
+       */
+      // pattern = new RegExp(
+      //   // 确保前面不是点号或在行首，且后面可能有空白（代表语句分隔）
+      //   `(?:^|[^.])` +                                  
+      //   `\\s*` +                                       // 零个或多个 空白 (归一化后的换行/空格/制表符)
+      //   `(?:React\\.)?` +                              // 可选 React.
+      //   `(${hook})` +                                  // Hook 名称
+      //   `\\s*(?:<[^>]*>)?\\s*\\(`,                     // 可选泛型和开括号
+      //   'i' 
+      // )
+      pattern = new RegExp(
+        `(?:^|[^a-zA-Z0-9_$.]|[;,{\\(\\[])` +     // 确保前面是语句边界
+        `\\s*` +                                   // 可选空白
+        `(?:React\\.)?` +                          // 可选 React.
+        `(useEffect)` +                            // Hook 名称
+        `\\s*(?:<[^>]*>)?` +                       // 可选泛型
+        `\\s*\\(` +                                // 开括号
+        `\\s*(?:async\\s+)?` +                     // 可选 async
+        `(?:(?:function|\\(|\\w+\\s*=>))`,         // 函数开始标志
+        'i'
+      );
+    } 
+    // --- 针对 useState, useMemo, useCallback 的增强规则 (包含赋值解构) ---
+    else {
+      // 其他 Hooks 的通用模式
+      pattern = new RegExp(
+        `(?:^|[^a-zA-Z0-9_$.]|[;,{=])` +           // 确保前面不是标识符的一部分
+        `\\s*` +                                    // 可选空白
+        `(?:const|let|var)?` +                     // 可选变量声明
+        `\\s*` +                                    // 可选空白
+        `(?:\\[?[\\w,\\s]*\\]?)?` +                // 可选解构
+        `\\s*=?\\s*` +                             // 可选赋值
+        `(?:React\\.)?` +                          // 可选 React.
+        `(${hook})` +                              // Hook 名称
+        `\\s*(?:<[^>]*>)?\\s*\\(`,                 // 可选泛型和开括号
+        'i'
+      );
+    }
+    
+    // --- 步骤 3: 尝试匹配 ---
     const match = normalized.match(pattern);
     if (match) {
-        // 由于正则已经保证了前面不是点号，所以匹配成功即为 Hook 调用。
         return hook as HookKeyword;
     }
   }
@@ -129,7 +154,7 @@ function detectHookCall(text: string): HookKeyword | undefined {
 }
 
 /**
- * 检查某行是否是 Hook 调用
+ * 检查某行是否是 Hook 调用 (增强版)
  */
 function isHookCallLine(doc: vscode.TextDocument, lineIndex: number): HookKeyword | undefined {
   const line = doc.lineAt(lineIndex).text;
@@ -140,18 +165,27 @@ function isHookCallLine(doc: vscode.TextDocument, lineIndex: number): HookKeywor
     return hook;
   }
 
-  // 2. 检查跨行情况：合并当前行和下一行，解决 Hook 名称和开括号 `(` 跨行的问题。
-  if (lineIndex + 1 < doc.lineCount) {
-    const nextLine = doc.lineAt(lineIndex + 1).text;
-    const combined = `${line} ${nextLine}`;
+  // 2. 检查跨行情况：合并当前行和接下来的几行
+  // useEffect 经常跨多行，所以需要多看几行
+  const maxLookAhead = 3; // 最多向前看3行
+  
+  for (let offset = 1; offset <= maxLookAhead && lineIndex + offset < doc.lineCount; offset++) {
+    const lines: string[] = [line];
+    
+    for (let i = 1; i <= offset; i++) {
+      lines.push(doc.lineAt(lineIndex + i).text);
+    }
+    
+    const combined = lines.join(' ');
     hook = detectHookCall(combined);
 
     if (hook) {
-      // 确保 Hook 名称本身在第一行（即 `line` 范围内）
-      // 避免误识别下一行的独立 Hook 
-      const hookIndexInCombined = combined.indexOf(hook);
-      if (hookIndexInCombined < line.length) {
-          return hook;
+      // 确保 Hook 名称在第一行或紧接着的行中
+      const hookIndex = combined.toLowerCase().indexOf(hook.toLowerCase());
+      const firstLinesLength = lines.slice(0, Math.min(2, lines.length)).join(' ').length;
+      
+      if (hookIndex < firstLinesLength) {
+        return hook;
       }
     }
   }
