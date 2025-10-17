@@ -528,26 +528,32 @@ export function extractFunctionLabel(
   }
 
   // 直接 Hook 调用
-  const directHookMatch = s.match(/\b(?:React\.)?(useEffect|useState|useMemo|useCallback|useRef|useReducer|useLayoutEffect|useContext|useImperativeHandle|useDebugValue|useDeferredValue|useTransition|useId|useSyncExternalStore|useInsertionEffect)\s*\(/);
+  const directHookMatch = s.match(/(?:^|\s)(?:React\.)?(useEffect|useState|useMemo|useCallback|useRef|useReducer|useLayoutEffect|useContext|useImperativeHandle|useDebugValue|useDeferredValue|useTransition|useId|useSyncExternalStore|useInsertionEffect)\s*\(/);
   if (directHookMatch) {
-    const HOOK_LABELS: Record<string, string> = {
-      useEffect: '副作用处理',
-      useState: '状态管理',
-      useMemo: '记忆化计算',
-      useCallback: '回调记忆',
-      useRef: '引用持久化',
-      useReducer: '状态归约',
-      useLayoutEffect: '布局副作用',
-      useContext: '上下文读取',
-      useImperativeHandle: '暴露实例方法',
-      useDebugValue: '调试标记',
-      useDeferredValue: '延迟值',
-      useTransition: '并发过渡',
-      useId: '稳定ID',
-      useSyncExternalStore: '外部存储同步',
-      useInsertionEffect: '样式插入副作用',
-    };
-    return HOOK_LABELS[directHookMatch[1]] || 'Hook 调用';
+    // 额外检查：确保不是对象方法调用
+    const beforeHook = s.substring(0, s.indexOf(directHookMatch[1]));
+    if (beforeHook.includes('.')) {
+      // 跳过对象方法调用
+    } else {
+      const HOOK_LABELS: Record<string, string> = {
+        useEffect: '副作用处理',
+        useState: '状态管理',
+        useMemo: '记忆化计算',
+        useCallback: '回调记忆',
+        useRef: '引用持久化',
+        useReducer: '状态归约',
+        useLayoutEffect: '布局副作用',
+        useContext: '上下文读取',
+        useImperativeHandle: '暴露实例方法',
+        useDebugValue: '调试标记',
+        useDeferredValue: '延迟值',
+        useTransition: '并发过渡',
+        useId: '稳定ID',
+        useSyncExternalStore: '外部存储同步',
+        useInsertionEffect: '样式插入副作用',
+      };
+      return HOOK_LABELS[directHookMatch[1]] || 'Hook 调用';
+    }
   }
 
   // 其他函数匹配
