@@ -78,8 +78,18 @@ function getLeftStripeDecoration(color: string): vscode.TextEditorDecorationType
  * 严格检测 Hook 调用
  * 确保是真正的 React Hook，不是对象方法或类型定义
  */
-function detectHookCall(line: string): HookKeyword | undefined {
-  const normalized = line.trim();
+function detectHookCall(text: string): HookKeyword | undefined {
+  // 移除注释和多余空白，但保持基本结构
+  const normalized = text
+    .split('\n')
+    .map(line => {
+      // 移除行注释后的内容
+      const commentIndex = line.indexOf('//');
+      return commentIndex !== -1 ? line.substring(0, commentIndex) : line;
+    })
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   for (const hook of HOOK_KEYWORDS) {
     // Hook 必须满足：
@@ -89,7 +99,7 @@ function detectHookCall(line: string): HookKeyword | undefined {
     // 4. 前面不能有点号（排除对象方法）
 
     const pattern = new RegExp(
-      `(?:^|\\s|=|return\\s)` +        // 前缀
+      `(?:^|\\s|=|return\\s)` +        // 前缀：行首、空白、赋值、return
       `(?:React\\.)?` +                // 可选 React.
       `(${hook})\\s*\\(`,              // Hook 名 + (
       'i'
@@ -98,12 +108,11 @@ function detectHookCall(line: string): HookKeyword | undefined {
     const match = normalized.match(pattern);
     if (!match) continue;
 
-    // 检查 Hook 前面是否有点号（但允许 React. 前缀）
+    // 检查 Hook 前面是否有点号
     const hookPos = match.index! + match[0].indexOf(hook);
     const beforeHook = normalized.substring(0, hookPos).trimEnd();
 
-    // 允许 React. 前缀，但排除其他对象方法
-    if (beforeHook.endsWith('.') && !beforeHook.endsWith('React.')) {
+    if (beforeHook.endsWith('.')) {
       continue;  // 对象方法，排除
     }
 
@@ -201,25 +210,33 @@ function findHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
     // ===== 检测 React Hooks =====
     const hook = isHookCallLine(doc, i);
     if (hook) {
+      console.log(`🔍 检测到 Hook: ${hook} 在第 ${i + 1} 行: ${trimmed}`);
       const range = getHookCallRange(doc, i);
       if (range) {
+        console.log(`📍 Hook 范围: 行 ${range.start.line + 1}-${range.end.line + 1}`);
+        
         // 检查是否在排除区域内
         const isInSuppressedRange = suppressRanges.some(suppressRange => {
           return !(range.end.isBefore(suppressRange.start) || range.start.isAfter(suppressRange.end));
         });
 
         if (!isInSuppressedRange) {
+          console.log(`✅ 添加 Hook 装饰: ${hook}`);
           items.push({
             range,
             type: hook,
             lineContent: trimmed,
           });
+        } else {
+          console.log(`❌ Hook 被排除区域过滤: ${hook}`);
         }
 
         // 标记已处理的行
         for (let j = range.start.line; j <= range.end.line; j++) {
           processed.add(j);
         }
+      } else {
+        console.log(`❌ 无法获取 Hook 范围: ${hook}`);
       }
       continue;
     }
@@ -282,8 +299,13 @@ function getHookChineseLabel(hookType: string): string {
 export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void {
   const doc = editor.document;
 
+  console.log(`🎨 开始应用 Hook 装饰: ${doc.fileName}`);
+
   // 性能检查
-  if (doc.lineCount > 10000) return;
+  if (doc.lineCount > 10000) {
+    console.log(`⚠️ 文件过大，跳过: ${doc.lineCount} 行`);
+    return;
+  }
 
   // 获取缓存或计算
   const docUri = doc.uri.toString();
@@ -293,9 +315,12 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
 
   const cached = itemCache.get(docUri);
   if (cached && cached.version === docVersion) {
+    console.log(`📦 使用缓存: ${cached.items.length} 个 Hook`);
     items = cached.items;
   } else {
+    console.log(`🔍 重新计算 Hook 装饰...`);
     items = findHooksAndRegions(doc);
+    console.log(`📊 找到 ${items.length} 个 Hook/Region`);
     itemCache.set(docUri, { items, version: docVersion });
 
     // 限制缓存大小
@@ -319,8 +344,10 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
     groups.get(item.type)!.push(item.range);
   }
 
+  console.log(`🎨 应用装饰: ${groups.size} 种类型`);
   for (const [type, ranges] of groups) {
     const color = colorScheme[type] || colorScheme['default'];
+    console.log(`  - ${type}: ${ranges.length} 个范围, 颜色: ${color}`);
     const dt = getLeftStripeDecoration(color);
     editor.setDecorations(dt, ranges);
   }
