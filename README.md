@@ -12,12 +12,12 @@
   - `sunset`（日落）- 暖色调，温暖活力
   - `forest`（森林）- 绿色系，沉稳专注
   - `neon`（霓虹）- 荧光色，炫酷科技感
-- **React Hooks 统一着色**：同类型的 Hook 使用相同颜色
-  - 亮色主题：`useEffect` → 深蓝、`useState` → 深橙红、`useMemo` → 深紫
-  - 暗色主题：`useEffect` → 明亮红、`useState` → 明亮黄、`useMemo` → 明亮蓝
-  - 支持所有官方 React Hooks（15+ 种）
-- **组件函数着色**：React 组件自动识别并着色
-- **事件处理函数着色**：handle/on 开头的函数自动识别
+- **React Hooks 精准着色**：四大核心 Hooks 使用不同颜色区分
+  - `useState` - 状态管理（最常用）
+  - `useEffect` - 副作用处理
+  - `useMemo` - 记忆化计算
+  - `useCallback` - 回调记忆
+- **智能识别过滤**：自动忽略 JSX 内联函数、数组方法回调、TypeScript 类型定义
 - **Region 区域着色**：`// #region` 标记的区域使用绿色
 
 ### 🤖 AI 智能翻译
@@ -27,30 +27,37 @@
   - `getUserInfo` → `获取用户信息`
   - `handleSubmit` → `处理提交`
   - `calculateTotal` → `计算总计`
-- **优先级翻译**：可见区域优先翻译，提升用户体验
+- **优先级翻译系统**：三层优先级智能翻译
+  - 最高优先级：当前文件可见区域
+  - 中优先级：当前文件不可见区域
+  - 低优先级：其他打开的文件
 - **持久化缓存**：翻译结果自动保存到本地，重启后无需重新翻译
 - **智能缓存**：已翻译的函数名会被缓存，响应即时
 - **失败降级**：AI 翻译失败时自动显示原函数名，不影响使用
 - **多环境支持**：支持生产环境、内网环境、测试环境切换
+- **速率控制**：智能请求间隔控制，避免 API 限制
 
 ### 📝 中文语义化注释
-- **函数类型识别**：自动识别函数类型并显示中文注释
-  - `useEffect(() => {` → `// 副作用处理`
-  - `useState(` → `// 状态管理`
-  - `function ComponentName(` → `// 组件：ComponentName`
-  - `handleClick(` → `// 处理点击`
+- **Hook 类型识别**：自动识别 React Hooks 并显示中文注释
+  - `useState(` → `// 状态`
+  - `useEffect(` → `// 副作用`
+  - `useMemo(` → `// 记忆化`
+  - `useCallback(` → `// 记忆回调`
 - **虚拟注释**：不修改源文件，以悬浮形式显示
-- **智能过滤**：自动忽略 JSX 内联函数和数组方法回调
+- **智能过滤**：自动忽略 JSX 内联函数、数组方法回调和 TypeScript 类型定义
 
 ### 🎯 智能识别
-- **自动识别**：支持各种函数定义方式
-  - `function name() {}`
-  - `const name = () => {}`
-  - `name = () => {}`
-  - `useEffect(() => {})`
-  - `React.useEffect(() => {})`
-- **嵌套处理**：正确处理函数嵌套，避免重复着色
+- **React Hooks 识别**：精准识别四大核心 Hooks
+  - `useState`、`useEffect`、`useMemo`、`useCallback`
+  - 支持 `React.useState` 等带前缀的调用
+  - 支持跨行 Hook 调用识别
+- **智能过滤**：自动排除不需要着色的代码
+  - JSX 内联函数（`onClick={() => {}}`）
+  - 数组方法回调（`.map(item => {})`）
+  - TypeScript 类型定义
+  - 对象方法调用
 - **性能优化**：智能缓存，大文件也能流畅运行
+- **边界检测**：精确的函数边界识别，避免重复着色
 
 ## 🚀 快速开始
 
@@ -69,16 +76,20 @@
 
 ```typescript
 // #region 用户管理
-function UserProfile() {  // 组件：UserProfile
-  const [user, setUser] = useState(null);  // 状态管理
+function UserProfile() {
+  const [user, setUser] = useState(null);  // 状态
   
-  useEffect(() => {  // 副作用处理
+  useEffect(() => {  // 副作用
     fetchUser();
   }, []);
   
-  const handleSubmit = (data) => {  // 处理提交
+  const userData = useMemo(() => {  // 记忆化
+    return processUserData(user);
+  }, [user]);
+  
+  const handleSubmit = useCallback((data) => {  // 记忆回调
     // ...
-  };
+  }, []);
   
   return (
     <div onClick={() => {}}>  {/* JSX 内联函数不着色 */}
@@ -110,8 +121,14 @@ function UserProfile() {  // 组件：UserProfile
 ### 🤖 AI 翻译配置
 - `codehue.enableAITranslation`: 启用 AI 智能翻译（默认：true）
 - `codehue.aiApiKey`: AI 模型 API Key（可选，留空使用内置 Key）
-- `codehue.aiModelBaseUrl`: AI 模型的基础 URL（支持生产/内网/测试环境）
-- `codehue.aiModelName`: AI 模型名称（支持 Qwen2.5 系列和 Qwen3 轻量模型）
+- `codehue.aiModelBaseUrl`: AI 模型的基础 URL
+  - 办公网访问生产环境：`http://llm-model-hub-apis.sf-express.com`（默认）
+  - 生产环境（内网）：`http://llm-model-hub-apis.int.sfcloud.local:1080`
+  - 测试环境：`http://llm-model-hub-proxy.sit.sf-express.com`
+- `codehue.aiModelName`: AI 模型名称
+  - `aiplat/qwen2.5-72b-instruct`（推荐，翻译质量最高）
+  - `aiplat/qwen2.5-vl-72b`（视觉语言模型）
+  - `Qwen3-4B`（轻量模型，响应快）
 
 ### 📝 注释配置
 - `codehue.enableSemanticComments`: 是否显示语义化注释（默认：true）
@@ -166,33 +183,29 @@ function UserProfile() {  // 组件：UserProfile
 #### 亮色主题配色（深色调）
 | Hook/类型 | 颜色 | 说明 |
 |----------|------|------|
-| `useState` | 🟠 深橙红 `#E65100` | 状态管理（最常用） |
-| `useEffect` | 🔵 深蓝 `#1565C0` | 副作用处理 |
-| `useMemo` | 🟣 深紫 `#6A1B9A` | 缓存优化 |
-| `useCallback` | 🟢 深青绿 `#00695C` | 回调优化 |
-| `useRef` | 🔴 深粉红 `#AD1457` | 引用 |
-| `useContext` | 🟠 深橙 `#EF6C00` | 上下文 |
-| 组件 | 🟣 深靛蓝 `#311B92` | React 组件 |
-| 事件处理 | 🔴 深红 `#C62828` | handle/on 函数 |
-| Region | 🟢 深绿 `#2E7D32` | 区域标识 |
+| `useState` | 🟠 亮橙红 `#FF8A65` | 状态管理（最常用） |
+| `useEffect` | 🔵 亮蓝 `#42A5F5` | 副作用处理 |
+| `useMemo` | 🟣 亮紫 `#AB47BC` | 记忆化计算 |
+| `useCallback` | 🟢 亮青绿 `#26A69A` | 回调记忆 |
+| Region | 🟢 亮绿 `#66BB6A` | 区域标识 |
 
 #### 暗色主题配色（明亮色调）
 | Hook/类型 | 颜色 | 说明 |
 |----------|------|------|
-| `useState` | 🟡 明亮黄 `#FFD54F` | 状态管理（最常用） |
-| `useEffect` | 🔴 明亮红 `#EF5350` | 副作用处理 |
-| `useMemo` | 🔵 明亮蓝 `#42A5F5` | 缓存优化 |
-| `useCallback` | 🔵 明亮青 `#26C6DA` | 回调优化 |
-| `useRef` | 🟣 明亮紫 `#AB47BC` | 引用 |
-| `useContext` | 🟠 明亮橙 `#FFB74D` | 上下文 |
-| 组件 | 🟣 明亮紫 `#BA68C8` | React 组件 |
-| 事件处理 | 🟣 明亮粉红 `#F48FB1` | handle/on 函数 |
-| Region | 🟢 明亮绿 `#81C784` | 区域标识 |
+| `useState` | 🟡 超亮黄 `#FFF176` | 状态管理（最常用） |
+| `useEffect` | 🔴 超亮红 `#FF8A80` | 副作用处理 |
+| `useMemo` | 🔵 超亮蓝 `#64B5F6` | 记忆化计算 |
+| `useCallback` | 🔵 超亮青 `#4DD0E1` | 回调记忆 |
+| Region | 🟢 超亮绿 `#A5D6A7` | 区域标识 |
 
-### 🔧 支持的所有 React Hooks
-`useState`、`useEffect`、`useMemo`、`useCallback`、`useRef`、`useReducer`、`useLayoutEffect`、`useContext`、`useImperativeHandle`、`useDebugValue`、`useDeferredValue`、`useTransition`、`useId`、`useSyncExternalStore`、`useInsertionEffect`
+### 🔧 支持的 React Hooks
+**四大核心 Hooks**（重点支持）：
+- `useState` - 状态管理
+- `useEffect` - 副作用处理  
+- `useMemo` - 记忆化计算
+- `useCallback` - 回调记忆
 
-> **💡 智能着色策略**：高频使用的 Hooks（useState、useEffect、useMemo、useCallback）使用差异明显的颜色，低频 Hooks 复用相近色系，确保视觉层次清晰。
+> **💡 智能着色策略**：专注于四大最常用的 Hooks，使用差异明显的颜色进行区分，确保视觉层次清晰。其他 Hooks 暂不进行着色，避免视觉干扰。
 
 ## 🔧 技术特性
 
@@ -201,13 +214,15 @@ function UserProfile() {  // 组件：UserProfile
 - **高性能**：智能缓存，支持大文件（10000+ 行），防抖优化，避免频繁重绘
 - **实时更新**：代码变化时自动更新装饰，文档版本缓存避免重复处理
 - **主题切换响应**：切换主题时立即更新颜色，无需手动刷新
-- **多语言支持**：TypeScript, JavaScript, TSX, JSX
-- **智能识别**：支持各种函数定义方式，正确处理函数嵌套，避免重复着色
-- **优先级翻译**：可见区域优先翻译，提升用户体验
+- **多语言支持**：TypeScript, JavaScript, TSX, JSX, Vue, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Dart, Scala, Perl, R, Lua
+- **智能识别**：精准识别四大核心 React Hooks，智能过滤不需要着色的代码
+- **优先级翻译系统**：三层优先级智能翻译，可见区域优先，提升用户体验
 - **持久化缓存**：翻译结果自动保存到本地，重启后无需重新翻译
+- **速率控制**：智能请求间隔控制，避免 API 限制和 429 错误
+- **失败降级**：AI 翻译失败时自动显示原函数名，不影响基本功能
 - **环境变量支持**：开发环境使用 .env 文件，生产环境使用构建脚本注入
 
-## 🤖 AI 智能翻译
+## 🤖 AI 智能翻译详解
 
 CodeHue 集成了顺丰私有云 AI 模型，可智能翻译函数名为中文语义。
 
@@ -229,9 +244,13 @@ CodeHue 集成了顺丰私有云 AI 模型，可智能翻译函数名为中文�
 
 - **私有云集成**：使用顺丰私有云 AI 模型，安全可靠，无需担心数据泄露
 - **自动翻译**：插件内置 API Key，启用后自动调用私有云 AI 模型翻译
-- **优先级翻译**：可见区域优先翻译，提升用户体验
+- **三层优先级翻译系统**：
+  - 最高优先级：当前文件可见区域（立即翻译）
+  - 中优先级：当前文件不可见区域（后台翻译）
+  - 低优先级：其他打开的文件（最后翻译）
 - **持久化缓存**：翻译结果自动保存到本地磁盘，重启后无需重新翻译
 - **智能缓存**：已翻译的函数名会被缓存，无需重复调用 API，响应即时
+- **速率控制**：智能请求间隔控制（3秒间隔），避免 API 限制
 - **失败降级**：AI 翻译失败时自动显示原函数名，不影响使用
 - **一键禁用**：可通过 `codehue.enableAITranslation` 快速禁用 AI 翻译
 
@@ -252,9 +271,12 @@ CodeHue 集成了顺丰私有云 AI 模型，可智能翻译函数名为中文�
 
 - [x] ~~自定义颜色方案~~ ✅ 已实现六大主题
 - [x] ~~AI 驱动的函数名翻译~~ ✅ 已实现智能翻译
-- [x] ~~支持更多编程语言~~ ✅ 已支持 多种编程语言
+- [x] ~~支持更多编程语言~~ ✅ 已支持多种编程语言
 - [x] ~~私有云 AI 集成~~ ✅ 已集成顺丰私有云 AI 模型
 - [x] ~~持久化缓存~~ ✅ 已实现翻译结果本地保存
+- [x] ~~优先级翻译系统~~ ✅ 已实现三层优先级翻译
+- [x] ~~React Hooks 精准识别~~ ✅ 已实现四大核心 Hooks 着色
+- [x] ~~智能过滤系统~~ ✅ 已实现 JSX、数组方法等过滤
 - [ ] 集成 JSDoc 注释
 - [ ] 函数复杂度可视化
 - [ ] 自定义颜色配置
@@ -268,9 +290,9 @@ Apache License 2.0
 
 ---
 
-**版本**: 3.4.0  
+**版本**: 3.5.0  
 **兼容性**: VSCode ^1.85.0  
-**支持语言**: TypeScript, JavaScript, TSX, JSX
+**支持语言**: TypeScript, JavaScript, TSX, JSX, Vue, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Dart, Scala, Perl, R, Lua
 
 ## 💡 使用技巧
 
@@ -278,10 +300,15 @@ Apache License 2.0
    - 亮色主题：深色调配色，对比度高
    - 暗色主题：明亮色调配色，清晰易读
 2. **Region 标记**：使用 `// #region` 标记代码块，获得统一的绿色着色
-3. **函数命名**：使用 `handle` 或 `on` 开头的函数名，会自动识别为事件处理函数
-4. **组件命名**：使用大写字母开头的函数名，会自动识别为 React 组件
+3. **React Hooks 识别**：四大核心 Hooks 会自动着色和注释
+   - `useState` - 状态管理（橙色/黄色）
+   - `useEffect` - 副作用处理（蓝色/红色）
+   - `useMemo` - 记忆化计算（紫色/蓝色）
+   - `useCallback` - 回调记忆（青色/青色）
+4. **智能过滤**：JSX 内联函数、数组方法回调等会自动过滤，不会着色
 5. **性能优化**：对于超大文件（>10000行），插件会自动跳过处理
 6. **配色调整**：在设置中切换六大主题方案，每种方案都有亮色/暗色版本
+7. **AI 翻译**：可见区域的函数名会优先翻译，提升用户体验
 
 ## 🐛 问题反馈
 

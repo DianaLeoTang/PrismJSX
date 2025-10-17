@@ -350,9 +350,9 @@ function findHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
  */
 function getHookChineseLabel(hookType: string): string {
   const labels: Record<string, string> = {
-    'useState': '状态',
-    'useEffect': '副作用',
-    'useMemo': '记忆化',
+    'useState': '状态管理',
+    'useEffect': '副作用处理',
+    'useMemo': '记忆化计算',
     'useCallback': '记忆回调',
     'region': '区域',
   };
