@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.0.0](https://github.com/DianaLeoTang/PrismJSX/compare/v3.5.0...v4.0.0) (2025-10-17)
+
+
+### 🐛 Bug 修复
+
+* 解决中文标记出现多次的问题 ([dbe98c2](https://github.com/DianaLeoTang/PrismJSX/commit/dbe98c2e2bb84e1dc5f8a88dca246cc67d164463))
+
+
+### ♻️ 代码重构
+
+*  注释不使用的代码 ([4146a55](https://github.com/DianaLeoTang/PrismJSX/commit/4146a55434c9561c37eebcb54d0bf6885a0a7d26))
+* 删除console ([7a2efcf](https://github.com/DianaLeoTang/PrismJSX/commit/7a2efcf5116fd2abba222eb7eaacc027135c931f))
+* 删除console ([7deccd4](https://github.com/DianaLeoTang/PrismJSX/commit/7deccd46d6682a3b7907a6ed7736558edf0a41b8))
+
+
+### ✨ 新功能
+
+*  根据最新功能调整readme文件 ([d313637](https://github.com/DianaLeoTang/PrismJSX/commit/d31363768354bf9218f4b9b63cd94a18afb5cf52))
+* 'useMemo' | 'useCallback'｜'useState'的识别都可以了，还差use Effect ([99d6ea5](https://github.com/DianaLeoTang/PrismJSX/commit/99d6ea52bd855788a1634170f232f42b43f828d5))
+* 不同hooks匹配不同的规则颜色 ([3df78a7](https://github.com/DianaLeoTang/PrismJSX/commit/3df78a78d6554f12936522f13e4df503c6fef096))
+* 拆分文件，避免文件代码体积过大 ([b6e3f59](https://github.com/DianaLeoTang/PrismJSX/commit/b6e3f5963d06b196843d1cf20a165d0c609fc332))
+* 调整对hooks的检查 ([e29c88e](https://github.com/DianaLeoTang/PrismJSX/commit/e29c88ee3a32fd4018a02b24e1b31bb3be04aed9))
+* 调整hooks识别的边界问题，之前useeffect.的识别存在边界溢出的问题 ([2d97748](https://github.com/DianaLeoTang/PrismJSX/commit/2d97748246c3c1a9722f710c5be9e799042ef33b))
+* 这次修改解决了对useState周边函数被检测到函数范围里做了修复 ([0353651](https://github.com/DianaLeoTang/PrismJSX/commit/0353651b375c1cad0955524681fa51e2b21116c0))
+
 ## [3.5.0](https://github.com/DianaLeoTang/PrismJSX/compare/v3.4.0...v3.5.0) (2025-10-16)
 
 
