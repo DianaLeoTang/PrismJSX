@@ -162,8 +162,8 @@ export function disposeRegionDecorations() {
   cachedRegions = [];
 }
 
-// 获取区域抑制范围
-export function getRegionSuppressionRanges(): vscode.Range[] {
-  // 给函数装饰用
-  return cachedRegions.length ? cachedRegions : getLastExclusionRanges();
-}
+// // 获取区域抑制范围
+// export function getRegionSuppressionRanges(): vscode.Range[] {
+//   // 给函数装饰用
+//   return cachedRegions.length ? cachedRegions : getLastExclusionRanges();
+// }
