@@ -1,0 +1,421 @@
+import * as vscode from 'vscode';
+import { onExclusionRanges } from './exclusionBus';
+import { COLOR_SCHEMES_LIGHT, COLOR_SCHEMES_DARK } from './colorSchemes';
+
+let suppressRanges: vscode.Range[] = [];
+onExclusionRanges((rs) => { suppressRanges = rs; });
+
+/** 颜色条缓存：不同颜色 → 独立 DecorationType */
+const stripeTypeCache = new Map<string, vscode.TextEditorDecorationType>();
+
+/** 行尾中文语义化注释 */
+const annotationType = vscode.window.createTextEditorDecorationType({
+  isWholeLine: false,
+  rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+  after: {
+    margin: '0 0 0 8px',
+    color: new vscode.ThemeColor('editorCodeLens.foreground'),
+  },
+});
+
+/** Hook 和 Region 识别缓存 */
+const itemCache = new Map<string, { items: DecoratedItem[]; version: number }>();
+
+interface DecoratedItem {
+  range: vscode.Range;
+  type: 'useState' | 'useEffect' | 'useMemo' | 'useCallback' | 'region';
+  lineContent: string;
+}
+
+/** React Hooks 列表 */
+const HOOK_KEYWORDS = ['useState', 'useEffect', 'useMemo', 'useCallback'] as const;
+type HookKeyword = typeof HOOK_KEYWORDS[number];
+
+/**
+ * 检测当前主题是否为暗色
+ */
+function isDarkTheme(): boolean {
+  const themeKind = vscode.window.activeColorTheme.kind;
+  return themeKind === vscode.ColorThemeKind.Dark || themeKind === vscode.ColorThemeKind.HighContrast;
+}
+
+/**
+ * 获取当前配置的颜色方案
+ */
+function getColorScheme(): Record<string, string> {
+  const config = vscode.workspace.getConfiguration('codehue');
+  const schemeName = config.get<string>('colorScheme', 'vibrant');
+  const schemes = isDarkTheme() ? COLOR_SCHEMES_DARK : COLOR_SCHEMES_LIGHT;
+  return schemes[schemeName] || schemes.vibrant;
+}
+
+/**
+ * 获取左侧条纹装饰
+ */
+function getLeftStripeDecoration(color: string): vscode.TextEditorDecorationType {
+  const config = vscode.workspace.getConfiguration('codehue');
+  const stripeWidth = config.get<string>('stripeWidth', '3px');
+  const cacheKey = `${color}-${stripeWidth}`;
+
+  if (stripeTypeCache.has(cacheKey)) {
+    return stripeTypeCache.get(cacheKey)!;
+  }
+
+  const dt = vscode.window.createTextEditorDecorationType({
+    isWholeLine: true,
+    borderStyle: 'solid',
+    borderColor: color,
+    borderWidth: `0 0 0 ${stripeWidth}`,
+    overviewRulerColor: color,
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+  });
+
+  stripeTypeCache.set(cacheKey, dt);
+  return dt;
+}
+
+/**
+ * 严格检测 Hook 调用
+ * 确保是真正的 React Hook，不是对象方法或类型定义
+ */
+function detectHookCall(line: string): HookKeyword | undefined {
+  const normalized = line.trim();
+
+  for (const hook of HOOK_KEYWORDS) {
+    // Hook 必须满足：
+    // 1. 行首、空白、赋值、return 之后
+    // 2. 可选 React. 前缀
+    // 3. 后面紧跟 (
+    // 4. 前面不能有点号（排除对象方法）
+
+    const pattern = new RegExp(
+      `(?:^|\\s|=|return\\s)` +        // 前缀
+      `(?:React\\.)?` +                // 可选 React.
+      `(${hook})\\s*\\(`,              // Hook 名 + (
+      'i'
+    );
+
+    const match = normalized.match(pattern);
+    if (!match) continue;
+
+    // 检查 Hook 前面是否有点号（但允许 React. 前缀）
+    const hookPos = match.index! + match[0].indexOf(hook);
+    const beforeHook = normalized.substring(0, hookPos).trimEnd();
+
+    // 允许 React. 前缀，但排除其他对象方法
+    if (beforeHook.endsWith('.') && !beforeHook.endsWith('React.')) {
+      continue;  // 对象方法，排除
+    }
+
+    return hook as HookKeyword;
+  }
+
+  return undefined;
+}
+
+/**
+ * 检查某行是否是 Hook 调用
+ */
+function isHookCallLine(doc: vscode.TextDocument, lineIndex: number): HookKeyword | undefined {
+  const line = doc.lineAt(lineIndex).text;
+
+  // 直接检查当前行
+  const directHook = detectHookCall(line);
+  if (directHook) {
+    return directHook;
+  }
+
+  // 检查当前行 + 下一行（处理跨行情况）
+  if (lineIndex + 1 < doc.lineCount) {
+    const nextLine = doc.lineAt(lineIndex + 1).text;
+    const combined = `${line} ${nextLine}`;
+    const crossLineHook = detectHookCall(combined);
+    if (crossLineHook) {
+      return crossLineHook;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * 计算 Hook 调用的范围（从开括号到闭括号）
+ */
+function getHookCallRange(doc: vscode.TextDocument, startLine: number): vscode.Range | null {
+  let line = startLine;
+  let text = doc.lineAt(line).text;
+
+  // 查找第一个 (
+  let parenPos = text.indexOf('(');
+  while (parenPos === -1 && line < doc.lineCount - 1) {
+    line++;
+    text = doc.lineAt(line).text;
+    parenPos = text.indexOf('(');
+  }
+
+  if (parenPos === -1) return null;
+
+  // 从这个 ( 开始计数，找到匹配的 )
+  let openCount = 0;
+  let currentLine = line;
+  let currentPos = parenPos;
+
+  while (currentLine < doc.lineCount) {
+    const lineText = doc.lineAt(currentLine).text;
+
+    for (let i = currentPos; i < lineText.length; i++) {
+      if (lineText[i] === '(') {
+        openCount++;
+      } else if (lineText[i] === ')') {
+        openCount--;
+        if (openCount === 0) {
+          // 找到了匹配的闭括号
+          return new vscode.Range(
+            new vscode.Position(startLine, 0),
+            new vscode.Position(currentLine, i + 1)
+          );
+        }
+      }
+    }
+
+    currentLine++;
+    currentPos = 0;
+  }
+
+  return null;
+}
+
+/**
+ * 识别所有 Hooks 和 Regions
+ */
+function findHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
+  const items: DecoratedItem[] = [];
+  const processed = new Set<number>();
+
+  for (let i = 0; i < doc.lineCount; i++) {
+    if (processed.has(i)) continue;
+
+    const line = doc.lineAt(i).text;
+    const trimmed = line.trim();
+
+    // ===== 检测 React Hooks =====
+    const hook = isHookCallLine(doc, i);
+    if (hook) {
+      const range = getHookCallRange(doc, i);
+      if (range) {
+        // 检查是否在排除区域内
+        const isInSuppressedRange = suppressRanges.some(suppressRange => {
+          return !(range.end.isBefore(suppressRange.start) || range.start.isAfter(suppressRange.end));
+        });
+
+        if (!isInSuppressedRange) {
+          items.push({
+            range,
+            type: hook,
+            lineContent: trimmed,
+          });
+        }
+
+        // 标记已处理的行
+        for (let j = range.start.line; j <= range.end.line; j++) {
+          processed.add(j);
+        }
+      }
+      continue;
+    }
+
+    // ===== 检测 Region =====
+    if (/#region\b/.test(trimmed)) {
+      let endLine = -1;
+
+      // 查找匹配的 #endregion
+      for (let j = i + 1; j < doc.lineCount; j++) {
+        if (/#endregion\b/.test(doc.lineAt(j).text.trim())) {
+          endLine = j;
+          break;
+        }
+      }
+
+      if (endLine !== -1) {
+        const range = new vscode.Range(
+          new vscode.Position(i, 0),
+          new vscode.Position(endLine, doc.lineAt(endLine).text.length)
+        );
+
+        items.push({
+          range,
+          type: 'region',
+          lineContent: trimmed,
+        });
+
+        // 标记已处理的行
+        for (let j = i; j <= endLine; j++) {
+          processed.add(j);
+        }
+
+        i = endLine;
+      }
+    }
+  }
+
+  return items;
+}
+
+/**
+ * 获取 Hook 的中文标签
+ */
+function getHookChineseLabel(hookType: string): string {
+  const labels: Record<string, string> = {
+    'useState': '状态',
+    'useEffect': '副作用',
+    'useMemo': '记忆化',
+    'useCallback': '记忆回调',
+    'region': '区域',
+  };
+
+  return labels[hookType] || hookType;
+}
+
+/**
+ * 应用 Hooks 和 Regions 的装饰
+ */
+export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void {
+  const doc = editor.document;
+
+  // 性能检查
+  if (doc.lineCount > 10000) return;
+
+  // 获取缓存或计算
+  const docUri = doc.uri.toString();
+  const docVersion = doc.version;
+
+  let items: DecoratedItem[] = [];
+
+  const cached = itemCache.get(docUri);
+  if (cached && cached.version === docVersion) {
+    items = cached.items;
+  } else {
+    items = findHooksAndRegions(doc);
+    itemCache.set(docUri, { items, version: docVersion });
+
+    // 限制缓存大小
+    if (itemCache.size > 50) {
+      const firstKey = itemCache.keys().next().value;
+      if (firstKey) itemCache.delete(firstKey);
+    }
+  }
+
+  // 清除旧装饰
+  stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
+
+  // 按类型分组并应用颜色
+  const groups = new Map<string, vscode.Range[]>();
+  const colorScheme = getColorScheme();
+
+  for (const item of items) {
+    if (!groups.has(item.type)) {
+      groups.set(item.type, []);
+    }
+    groups.get(item.type)!.push(item.range);
+  }
+
+  for (const [type, ranges] of groups) {
+    const color = colorScheme[type] || colorScheme['default'];
+    const dt = getLeftStripeDecoration(color);
+    editor.setDecorations(dt, ranges);
+  }
+
+  // 应用中文语义注释
+  const config = vscode.workspace.getConfiguration('codehue');
+  const enableSemanticComments = config.get<boolean>('enableSemanticComments', true);
+
+  const annotations: vscode.DecorationOptions[] = [];
+
+  if (enableSemanticComments) {
+    for (const item of items) {
+      if (item.type === 'region') continue;  // region 不需要额外注释
+
+      const line = item.range.start.line;
+      const chineseLabel = getHookChineseLabel(item.type);
+
+      // 在前一行的末尾添加注释
+      const targetLine = line > 0 ? line - 1 : line;
+      const targetPos = doc.lineAt(targetLine).range.end;
+
+      annotations.push({
+        range: new vscode.Range(targetPos, targetPos),
+        renderOptions: {
+          after: {
+            contentText: ` // ${chineseLabel}`,
+          },
+        },
+      });
+    }
+  }
+
+  editor.setDecorations(annotationType, annotations);
+}
+
+/**
+ * 刷新装饰
+ */
+export function refreshFunctionDecorations(): void {
+  // 触发重新计算
+  const editor = vscode.window.activeTextEditor;
+  if (editor) {
+    applyHooksAndRegionsDecorations(editor);
+  }
+}
+
+/**
+ * 清理资源
+ */
+export function disposeFunctionDecorations(): void {
+  stripeTypeCache.forEach((dt) => dt.dispose());
+  stripeTypeCache.clear();
+  itemCache.clear();
+}
+
+/**
+ * 添加函数注释
+ * 为找到的每个 Hook 添加注释
+ */
+export function addFunctionComments(editor: vscode.TextEditor): void {
+  const doc = editor.document;
+  const edit = new vscode.WorkspaceEdit();
+
+  const items = findHooksAndRegions(doc);
+  let addedComments = 0;
+
+  for (const item of items) {
+    if (item.type === 'region') continue;
+
+    const line = item.range.start.line;
+    const hasComment = line > 0 && (
+      doc.lineAt(line - 1).text.trim().startsWith('//')
+    );
+
+    if (!hasComment) {
+      const chineseLabel = getHookChineseLabel(item.type);
+      const comment = `// ${chineseLabel}\n`;
+      const insertPosition = new vscode.Position(line, 0);
+      edit.insert(doc.uri, insertPosition, comment);
+      addedComments++;
+    }
+  }
+
+  if (edit.size > 0) {
+    vscode.workspace.applyEdit(edit);
+    vscode.window.showInformationMessage(`为 ${addedComments} 个 Hook 添加了注释`);
+  } else {
+    vscode.window.showInformationMessage('没有找到需要添加注释的 Hook');
+  }
+}
+
+/**
+ * 获取当前文件中所有的 Hooks 和 Regions
+ * 用于其他扩展功能
+ */
+export function getHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
+  return findHooksAndRegions(doc);
+}
