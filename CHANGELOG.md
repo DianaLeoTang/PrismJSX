@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.2.0](https://github.com/DianaLeoTang/PrismJSX/compare/v4.1.0...v4.2.0) (2025-10-22)
+
+
+### ✨ 新功能
+
+* 同步默认hooks颜色配置 ([befeda9](https://github.com/DianaLeoTang/PrismJSX/commit/befeda92709e7637dde5c067cf31638e2f14a629))
+* 增加对其他hooks支持的示例文件 ([56d1d82](https://github.com/DianaLeoTang/PrismJSX/commit/56d1d828f1eae420c2b27ab797f3f8b3ca87c987))
+* 把颜色修改改成这种配置方式{ ([559df2e](https://github.com/DianaLeoTang/PrismJSX/commit/559df2efb7f3e9233ea15ca9893d6947a46b9a2b)), closes [#FF8A65](https://github.com/DianaLeoTang/PrismJSX/issues/FF8A65)
+* 支持更多的hooks区域颜色自定义 ([2e10216](https://github.com/DianaLeoTang/PrismJSX/commit/2e10216b938dd4803bf4274fdfed2e18ebe9c609))
+* 更新readme文件 ([c1241f1](https://github.com/DianaLeoTang/PrismJSX/commit/c1241f1ce0c1b05bb702f2aa839bcd2a4ee4d908))
+
 ## [4.1.0](https://github.com/DianaLeoTang/PrismJSX/compare/v4.0.0...v4.1.0) (2025-10-22)
 
 

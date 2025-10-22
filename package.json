@@ -3,7 +3,7 @@
   "displayName": "CodeHue",
   "description": "Structure coloring + inline translated comments (no rules mapping) for TS/JS/TSX/JSX.",
   "publisher": "codehue",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -84,7 +84,10 @@
                 "description": "颜色值（如：#FF8A65）"
               }
             },
-            "required": ["tag", "color"],
+            "required": [
+              "tag",
+              "color"
+            ],
             "additionalProperties": false
           }
         },
