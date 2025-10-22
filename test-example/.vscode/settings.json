@@ -1,0 +1,17 @@
+{
+  // CodeHue 自定义颜色配置示例
+  // 在调试模式下，这些配置会覆盖默认的颜色方案
+  
+  "codehue.customColors": {
+    "useState": "#FF8A65",
+         "useEffect": "#5E35B1",
+         "useMemo": "#FFEB3B",
+         "useCallback": "#A5F3A5"    // 紫色 - 用于测试 useCallback
+  },
+  
+  // 其他 CodeHue 配置
+  "codehue.colorScheme": "vibrant",
+  "codehue.enableSemanticComments": true,
+  "codehue.stripeWidth": "3px"
+}
+
