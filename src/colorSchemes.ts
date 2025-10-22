@@ -14,6 +14,17 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 🔵 浅紫色 → 副作用（第二常用！）
     'usememo': '#FFEB3B',          // 🟡 黄色 → 缓存优化
     'usecallback': '#A5F3A5',      // 🟢 浅绿色 → 回调优化
+    'useref': '#FFB74D',           // 🟠 橙色 → 引用管理
+    'usecontext': '#BA68C8',       // 🟣 紫色 → 上下文消费
+    'usereducer': '#4DB6AC',       // 🔵 青色 → 状态管理
+    'uselayouteffect': '#64B5F6',   // 🔵 蓝色 → 布局副作用
+    'useimperativehandle': '#F06292', // 🔴 粉色 → 命令式句柄
+    'usedebugvalue': '#90A4AE',     // ⚫ 灰色 → 调试值
+    'usedeferredvalue': '#FF7043',  // 🔴 橙红 → 延迟值
+    'usetransition': '#AB47BC',     // 🟣 紫色 → 过渡状态
+    'useid': '#26A69A',            // 🟢 青绿 → 唯一标识
+    'usesyncexternalstore': '#FFD54F', // 🟡 金黄 → 外部同步
+    'useinsertioneffect': '#42A5F5', // 🔵 蓝色 → 插入副作用
     // 'useref': '#EC407A',           // 🔴 亮粉红 → 引用
     // 'usecontext': '#FFB74D',       // 🟠 亮橙 → 上下文
     
@@ -40,6 +51,17 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 🔵 浅紫色 → 副作用
     'usememo': '#FFEB3B',          // 🟡 黄色 → 缓存优化
     'usecallback': '#A5F3A5',      // 🟢 浅绿色 → 回调优化
+    'useref': '#FFB74D',           // 🟠 橙色 → 引用管理
+    'usecontext': '#BA68C8',       // 🟣 紫色 → 上下文消费
+    'usereducer': '#4DB6AC',       // 🔵 青色 → 状态管理
+    'uselayouteffect': '#64B5F6',   // 🔵 蓝色 → 布局副作用
+    'useimperativehandle': '#F06292', // 🔴 粉色 → 命令式句柄
+    'usedebugvalue': '#90A4AE',     // ⚫ 灰色 → 调试值
+    'usedeferredvalue': '#FF7043',  // 🔴 橙红 → 延迟值
+    'usetransition': '#AB47BC',     // 🟣 紫色 → 过渡状态
+    'useid': '#26A69A',            // 🟢 青绿 → 唯一标识
+    'usesyncexternalstore': '#FFD54F', // 🟡 金黄 → 外部同步
+    'useinsertioneffect': '#42A5F5', // 🔵 蓝色 → 插入副作用
     // 'useref': '#F06292',           // 🔴 亮粉红 → 引用
     // 'usecontext': '#FFCC02',       // 🟠 亮浅橙 → 上下文
     
@@ -66,6 +88,17 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
     'usememo': '#FFEB3B',          // 黄色 → 缓存
     'usecallback': '#A5F3A5',      // 浅绿色 → 回调
+    'useref': '#FFB74D',           // 🟠 橙色 → 引用管理
+    'usecontext': '#BA68C8',       // 🟣 紫色 → 上下文消费
+    'usereducer': '#4DB6AC',       // 🔵 青色 → 状态管理
+    'uselayouteffect': '#64B5F6',   // 🔵 蓝色 → 布局副作用
+    'useimperativehandle': '#F06292', // 🔴 粉色 → 命令式句柄
+    'usedebugvalue': '#90A4AE',     // ⚫ 灰色 → 调试值
+    'usedeferredvalue': '#FF7043',  // 🔴 橙红 → 延迟值
+    'usetransition': '#AB47BC',     // 🟣 紫色 → 过渡状态
+    'useid': '#26A69A',            // 🟢 青绿 → 唯一标识
+    'usesyncexternalstore': '#FFD54F', // 🟡 金黄 → 外部同步
+    'useinsertioneffect': '#42A5F5', // 🔵 蓝色 → 插入副作用
     // 'useref': '#26A69A',           // 亮蓝绿 → 引用 （未使用）
     // 'usecontext': '#42A5F5',       // 亮靛蓝 → 上下文
     // 'usereducer': '#4FC3F7',       // 亮海蓝 → 状态管理
@@ -111,16 +144,16 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'usememo': '#FFEB3B',          // 黄色 → 缓存
     'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     'useref': '#26A69A',           // 亮青 → 引用
-    // 'usecontext': '#AED581',       // 亮草绿 → 上下文
-    // 'usereducer': '#66BB6A',       // 亮绿色 → 状态管理
-    // 'uselayouteffect': '#81C784',  // 亮绿 → 布局副作用
-    // 'useimperativehandle': '#80CBC4', // 亮绿松石 → 句柄
-    // 'usedebugvalue': '#66BB6A',    // 亮墨绿 → 调试
-    // 'usedeferredvalue': '#9CCC65', // 亮橄榄绿 → 延迟值
-    // 'usetransition': '#8BC34A',    // 亮翠绿 → 过渡
-    // 'useid': '#4DB6AC',            // 亮青绿 → ID
-    // 'usesyncexternalstore': '#AED581', // 亮橄榄绿 → 外部同步
-    // 'useinsertioneffect': '#4DB6AC', // 亮青绿 → 插入副作用
+    'usecontext': '#AED581',       // 亮草绿 → 上下文
+    'usereducer': '#66BB6A',       // 亮绿色 → 状态管理
+    'uselayouteffect': '#81C784',  // 亮绿 → 布局副作用
+    'useimperativehandle': '#80CBC4', // 亮绿松石 → 句柄
+    'usedebugvalue': '#66BB6A',    // 亮墨绿 → 调试
+    'usedeferredvalue': '#9CCC65', // 亮橄榄绿 → 延迟值
+    'usetransition': '#8BC34A',    // 亮翠绿 → 过渡
+    'useid': '#4DB6AC',            // 亮青绿 → ID
+    'usesyncexternalstore': '#AED581', // 亮橄榄绿 → 外部同步
+    'useinsertioneffect': '#4DB6AC', // 亮青绿 → 插入副作用
     'region': '#66BB6A',           // 亮墨绿 → 区域
     // 'component': '#9CCC65',        // 亮橄榄绿 → 组件
     // 'handler': '#C0CA33',          // 亮橄榄 → 事件处理
@@ -132,17 +165,17 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
     'usememo': '#FFEB3B',          // 黄色 → 缓存
     'usecallback': '#A5F3A5',      // 浅绿色 → 回调
-    // 'useref': '#EA80FC',           // 超亮紫 → 引用
-    // 'usecontext': '#FF9E80',       // 超亮荧光橙 → 上下文
-    // 'usereducer': '#E040FB',       // 超亮荧光紫 → 状态管理
-    // 'uselayouteffect': '#448AFF',  // 超亮荧光蓝 → 布局副作用
-    // 'useimperativehandle': '#64FFDA', // 超亮荧光绿 → 句柄
-    // 'usedebugvalue': '#EA80FC',    // 超亮紫 → 调试
-    // 'usedeferredvalue': '#B388FF', // 超亮荧光紫 → 延迟值
-    // 'usetransition': '#B388FF',    // 超亮荧光紫 → 过渡
-    // 'useid': '#18FFFF',            // 超亮荧光青 → ID
-    // 'usesyncexternalstore': '#FFFF00', // 超亮荧光黄 → 外部同步
-    // 'useinsertioneffect': '#40C4FF', // 超亮荧光蓝 → 插入副作用
+    'useref': '#EA80FC',           // 超亮紫 → 引用
+    'usecontext': '#FF9E80',       // 超亮荧光橙 → 上下文
+    'usereducer': '#E040FB',       // 超亮荧光紫 → 状态管理
+    'uselayouteffect': '#448AFF',  // 超亮荧光蓝 → 布局副作用
+    'useimperativehandle': '#64FFDA', // 超亮荧光绿 → 句柄
+    'usedebugvalue': '#EA80FC',    // 超亮紫 → 调试
+    'usedeferredvalue': '#B388FF', // 超亮荧光紫 → 延迟值
+    'usetransition': '#B388FF',    // 超亮荧光紫 → 过渡
+    'useid': '#18FFFF',            // 超亮荧光青 → ID
+    'usesyncexternalstore': '#FFFF00', // 超亮荧光黄 → 外部同步
+    'useinsertioneffect': '#40C4FF', // 超亮荧光蓝 → 插入副作用
     'region': '#69F0AE',           // 超亮荧光绿 → 区域
     // 'component': '#E040FB',        // 超亮荧光紫 → 组件
     // 'handler': '#FF5252',          // 超亮荧光红 → 事件处理
@@ -158,17 +191,17 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
     'usememo': '#FFEB3B',          // 黄色 → 缓存
     'usecallback': '#A5F3A5',      // 浅绿色 → 回调
-    // 'useref': '#BA68C8',           // 超亮紫 → 引用
-    // 'usereducer': '#F06292',       // 超亮粉红 → 状态管理
-    // 'uselayouteffect': '#A5D6A7',  // 超亮浅绿 → 布局副作用
-    // 'usecontext': '#FFCC02',       // 超亮橙 → 上下文
-    // 'useimperativehandle': '#4DD0E1', // 超亮蓝绿 → 句柄
-    // 'usedebugvalue': '#F8BBD9',    // 超亮洋红 → 调试
-    // 'usedeferredvalue': '#9FA8DA', // 超亮靛蓝 → 延迟值
-    // 'usetransition': '#D1C4E9',    // 超亮紫罗兰 → 过渡
-    // 'useid': '#B2DFDB',            // 超亮蓝绿 → ID
-    // 'usesyncexternalstore': '#FFF176', // 超亮金黄 → 外部同步
-    // 'useinsertioneffect': '#F8BBD9', // 超亮玫红 → 插入副作用
+    'useref': '#BA68C8',           // 超亮紫 → 引用
+    'usereducer': '#F06292',       // 超亮粉红 → 状态管理
+    'uselayouteffect': '#A5D6A7',  // 超亮浅绿 → 布局副作用
+    'usecontext': '#FFCC02',       // 超亮橙 → 上下文
+    'useimperativehandle': '#4DD0E1', // 超亮蓝绿 → 句柄
+    'usedebugvalue': '#F8BBD9',    // 超亮洋红 → 调试
+    'usedeferredvalue': '#9FA8DA', // 超亮靛蓝 → 延迟值
+    'usetransition': '#D1C4E9',    // 超亮紫罗兰 → 过渡
+    'useid': '#B2DFDB',            // 超亮蓝绿 → ID
+    'usesyncexternalstore': '#FFF176', // 超亮金黄 → 外部同步
+    'useinsertioneffect': '#F8BBD9', // 超亮玫红 → 插入副作用
     // 'component': '#CE93D8',        // 超亮紫 → 组件
     // 'handler': '#F8BBD9',          // 超亮粉红 → 事件处理
     'default': '#FFCC02'           // 超亮橙 → 默认
@@ -179,17 +212,17 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
     'usememo': '#FFEB3B',          // 黄色 → 缓存
     'usecallback': '#A5F3A5',      // 浅绿色 → 回调
-    // 'useref': '#D1C4E9',           // 超淡雅淡紫 → 引用
-    // 'usereducer': '#F8BBD9',       // 超淡雅粉红 → 状态管理
-    // 'uselayouteffect': '#DCEDC8',  // 超淡雅草绿 → 布局副作用
-    // 'usecontext': '#FFECB3',       // 超淡雅黄橙 → 上下文
-    // 'useimperativehandle': '#E0F2F1', // 超淡雅浅青 → 句柄
-    // 'usedebugvalue': '#FCE4EC',    // 超淡雅浅粉 → 调试
-    // 'usedeferredvalue': '#C5CAE9', // 超淡雅藕紫蓝 → 延迟值
-    // 'usetransition': '#E1BEE7',    // 超淡雅柔紫 → 过渡
-    // 'useid': '#E0F2F1',            // 超淡雅薄荷绿 → ID
-    // 'usesyncexternalstore': '#FFFDE7', // 超淡雅明黄 → 外部同步
-    // 'useinsertioneffect': '#F8BBD9', // 超淡雅玫瑰粉 → 插入副作用
+    'useref': '#D1C4E9',           // 超淡雅淡紫 → 引用
+    'usereducer': '#F8BBD9',       // 超淡雅粉红 → 状态管理
+    'uselayouteffect': '#DCEDC8',  // 超淡雅草绿 → 布局副作用
+    'usecontext': '#FFECB3',       // 超淡雅黄橙 → 上下文
+    'useimperativehandle': '#E0F2F1', // 超淡雅浅青 → 句柄
+    'usedebugvalue': '#FCE4EC',    // 超淡雅浅粉 → 调试
+    'usedeferredvalue': '#C5CAE9', // 超淡雅藕紫蓝 → 延迟值
+    'usetransition': '#E1BEE7',    // 超淡雅柔紫 → 过渡
+    'useid': '#E0F2F1',            // 超淡雅薄荷绿 → ID
+    'usesyncexternalstore': '#FFFDE7', // 超淡雅明黄 → 外部同步
+    'useinsertioneffect': '#F8BBD9', // 超淡雅玫瑰粉 → 插入副作用
     // 'component': '#D1C4E9',        // 超淡雅淡紫蓝 → 组件
     // 'handler': '#FFCDD2',          // 超淡雅粉橙 → 事件处理
     'default': '#FFF3E0'           // 超淡雅米杏色 → 默认
@@ -200,17 +233,17 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
     'usememo': '#FFEB3B',          // 黄色 → 缓存
     'usecallback': '#A5F3A5',      // 浅绿色 → 回调
-    // 'useref': '#80CBC4',           // 超亮绿松石 → 引用
-    // 'usecontext': '#64B5F6',       // 超亮蓝 → 上下文
-    // 'usereducer': '#4FC3F7',       // 超亮海蓝 → 状态管理
-    // 'uselayouteffect': '#80DEEA',  // 超亮青色 → 布局副作用
-    // 'useimperativehandle': '#B2DFDB', // 超亮绿松石 → 句柄
-    // 'usedebugvalue': '#9FA8DA',    // 超亮靛蓝 → 调试
-    // 'usedeferredvalue': '#90CAF9', // 超亮蓝 → 延迟值
-    // 'usetransition': '#9FA8DA',    // 超亮靛蓝 → 过渡
-    // 'useid': '#80DEEA',            // 超亮青 → ID
-    // 'usesyncexternalstore': '#4DD0E1', // 超亮青 → 外部同步
-    // 'useinsertioneffect': '#4DD0E1', // 超亮青 → 插入副作用
+    'useref': '#80CBC4',           // 超亮绿松石 → 引用
+    'usecontext': '#64B5F6',       // 超亮蓝 → 上下文
+    'usereducer': '#4FC3F7',       // 超亮海蓝 → 状态管理
+    'uselayouteffect': '#80DEEA',  // 超亮青色 → 布局副作用
+    'useimperativehandle': '#B2DFDB', // 超亮绿松石 → 句柄
+    'usedebugvalue': '#9FA8DA',    // 超亮靛蓝 → 调试
+    'usedeferredvalue': '#90CAF9', // 超亮蓝 → 延迟值
+    'usetransition': '#9FA8DA',    // 超亮靛蓝 → 过渡
+    'useid': '#80DEEA',            // 超亮青 → ID
+    'usesyncexternalstore': '#4DD0E1', // 超亮青 → 外部同步
+    'useinsertioneffect': '#4DD0E1', // 超亮青 → 插入副作用
     'region': '#80CBC4',           // 超亮绿松石 → 区域
     // 'component': '#9FA8DA',        // 超亮靛蓝 → 组件
     // 'handler': '#80CBC4',          // 超亮绿松石 → 事件处理
@@ -222,17 +255,17 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
     'usememo': '#FFEB3B',          // 黄色 → 缓存
     'usecallback': '#A5F3A5',      // 浅绿色 → 回调
-    // 'useref': '#F8BBD9',           // 超亮粉红 → 引用
-    // 'usecontext': '#FFCC02',       // 超亮琥珀 → 上下文
-    // 'usereducer': '#FF8A80',       // 超亮橙红 → 状态管理
-    // 'uselayouteffect': '#FFCC02',  // 超亮橙色 → 布局副作用
-    // 'useimperativehandle': '#FFAB91', // 超亮橙 → 句柄
-    // 'usedebugvalue': '#F8BBD9',    // 超亮粉红 → 调试
-    // 'usedeferredvalue': '#FFAB91', // 超亮红 → 延迟值
-    // 'usetransition': '#FF8A80',    // 超亮橙红 → 过渡
-    // 'useid': '#FFCC02',            // 超亮琥珀 → ID
-    // 'usesyncexternalstore': '#FFECB3', // 超亮琥珀 → 外部同步
-    // 'useinsertioneffect': '#FFAB91', // 超亮深橙 → 插入副作用
+    'useref': '#F8BBD9',           // 超亮粉红 → 引用
+    'usecontext': '#FFCC02',       // 超亮琥珀 → 上下文
+    'usereducer': '#FF8A80',       // 超亮橙红 → 状态管理
+    'uselayouteffect': '#FFCC02',  // 超亮橙色 → 布局副作用
+    'useimperativehandle': '#FFAB91', // 超亮橙 → 句柄
+    'usedebugvalue': '#F8BBD9',    // 超亮粉红 → 调试
+    'usedeferredvalue': '#FFAB91', // 超亮红 → 延迟值
+    'usetransition': '#FF8A80',    // 超亮橙红 → 过渡
+    'useid': '#FFCC02',            // 超亮琥珀 → ID
+    'usesyncexternalstore': '#FFECB3', // 超亮琥珀 → 外部同步
+    'useinsertioneffect': '#FFAB91', // 超亮深橙 → 插入副作用
     'region': '#C8E6C9',           // 超亮橄榄绿 → 区域
     // 'component': '#D7CCC8',        // 超亮棕色 → 组件
     // 'handler': '#FFAB91',          // 超亮红 → 事件处理
@@ -244,17 +277,17 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
     'usememo': '#FFEB3B',          // 黄色 → 缓存
     'usecallback': '#A5F3A5',      // 浅绿色 → 回调
-    // 'useref': '#80CBC4',           // 超亮青 → 引用
-    // 'usecontext': '#C8E6C9',       // 超亮草绿 → 上下文
-    // 'usereducer': '#A5D6A7',       // 超亮绿 → 状态管理
-    // 'uselayouteffect': '#A5D6A7',  // 超亮绿 → 布局副作用
-    // 'useimperativehandle': '#B2DFDB', // 超亮绿松石 → 句柄
-    // 'usedebugvalue': '#A5D6A7',    // 超亮草绿 → 调试
-    // 'usedeferredvalue': '#C5E1A5', // 超亮橄榄绿 → 延迟值
-    // 'usetransition': '#A5D6A7',    // 超亮草绿 → 过渡
-    // 'useid': '#80CBC4',            // 超亮青绿 → ID
-    // 'usesyncexternalstore': '#C8E6C9', // 超亮草绿 → 外部同步
-    // 'useinsertioneffect': '#80CBC4', // 超亮青绿 → 插入副作用
+    'useref': '#80CBC4',           // 超亮青 → 引用
+    'usecontext': '#C8E6C9',       // 超亮草绿 → 上下文
+    'usereducer': '#A5D6A7',       // 超亮绿 → 状态管理
+    'uselayouteffect': '#A5D6A7',  // 超亮绿 → 布局副作用
+    'useimperativehandle': '#B2DFDB', // 超亮绿松石 → 句柄
+    'usedebugvalue': '#A5D6A7',    // 超亮草绿 → 调试
+    'usedeferredvalue': '#C5E1A5', // 超亮橄榄绿 → 延迟值
+    'usetransition': '#A5D6A7',    // 超亮草绿 → 过渡
+    'useid': '#80CBC4',            // 超亮青绿 → ID
+    'usesyncexternalstore': '#C8E6C9', // 超亮草绿 → 外部同步
+    'useinsertioneffect': '#80CBC4', // 超亮青绿 → 插入副作用
     'region': '#A5D6A7',           // 超亮草绿 → 区域
     // 'component': '#C5E1A5',        // 超亮橄榄绿 → 组件
     // 'handler': '#DCE775',          // 超亮橄榄 → 事件处理
@@ -266,17 +299,17 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
     'usememo': '#FFEB3B',          // 黄色 → 缓存
     'usecallback': '#A5F3A5',      // 浅绿色 → 回调
-    // 'useref': '#F48FB1',           // 极亮粉紫 → 引用
-    // 'usecontext': '#FFB74D',       // 极亮橙 → 上下文
-    // 'usereducer': '#EA80FC',       // 极亮紫 → 状态管理
-    // 'uselayouteffect': '#82B1FF',  // 极亮蓝 → 布局副作用
-    // 'useimperativehandle': '#A7FFEB', // 极亮绿 → 句柄
-    // 'usedebugvalue': '#F48FB1',    // 极亮粉紫 → 调试
-    // 'usedeferredvalue': '#C5A3FF', // 极亮紫 → 延迟值
-    // 'usetransition': '#C5A3FF',    // 极亮紫 → 过渡
-    // 'useid': '#84FFFF',            // 极亮青 → ID
-    // 'usesyncexternalstore': '#FFFF8D', // 极亮黄 → 外部同步
-    // 'useinsertioneffect': '#80D8FF', // 极亮蓝 → 插入副作用
+    'useref': '#F48FB1',           // 极亮粉紫 → 引用
+    'usecontext': '#FFB74D',       // 极亮橙 → 上下文
+    'usereducer': '#EA80FC',       // 极亮紫 → 状态管理
+    'uselayouteffect': '#82B1FF',  // 极亮蓝 → 布局副作用
+    'useimperativehandle': '#A7FFEB', // 极亮绿 → 句柄
+    'usedebugvalue': '#F48FB1',    // 极亮粉紫 → 调试
+    'usedeferredvalue': '#C5A3FF', // 极亮紫 → 延迟值
+    'usetransition': '#C5A3FF',    // 极亮紫 → 过渡
+    'useid': '#84FFFF',            // 极亮青 → ID
+    'usesyncexternalstore': '#FFFF8D', // 极亮黄 → 外部同步
+    'useinsertioneffect': '#80D8FF', // 极亮蓝 → 插入副作用
     'region': '#A5F3A5',           // 极亮绿 → 区域
     // 'component': '#EA80FC',        // 极亮紫 → 组件
     // 'handler': '#FF8A80',          // 极亮红 → 事件处理
