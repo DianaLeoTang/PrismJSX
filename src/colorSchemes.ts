@@ -11,9 +11,9 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
   vibrant: {
     // === 高频 Hooks（6大主色，差异巨大）===
     'usestate': '#FF8A65',         // 🔴 亮橙红 → 状态（最常用！）
-    'useeffect': '#42A5F5',        // 🔵 亮蓝 → 副作用（第二常用！）
-    'usememo': '#AB47BC',          // 🟣 亮紫 → 缓存优化
-    'usecallback': '#26A69A',      // 🟢 亮青绿 → 回调优化
+    'useeffect': '#E8E0F0',        // 🔵 浅紫色 → 副作用（第二常用！）
+    'usememo': '#FFEB3B',          // 🟡 黄色 → 缓存优化
+    'usecallback': '#A5F3A5',      // 🟢 浅绿色 → 回调优化
     // 'useref': '#EC407A',           // 🔴 亮粉红 → 引用
     // 'usecontext': '#FFB74D',       // 🟠 亮橙 → 上下文
     
@@ -36,10 +36,10 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
   },
   soft: {
     // === 高频 Hooks（6大主色，差异明显）===
-    'usestate': '#FFB74D',         // 🟠 亮橙色 → 状态
-    'useeffect': '#64B5F6',        // 🔵 亮蓝色 → 副作用
-    'usememo': '#BA68C8',          // 🟣 亮紫色 → 缓存优化
-    'usecallback': '#4DB6AC',      // 🟢 亮青绿 → 回调优化
+    'usestate': '#FF8A65',         // 🟠 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 🔵 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 🟡 黄色 → 缓存优化
+    'usecallback': '#A5F3A5',      // 🟢 浅绿色 → 回调优化
     // 'useref': '#F06292',           // 🔴 亮粉红 → 引用
     // 'usecontext': '#FFCC02',       // 🟠 亮浅橙 → 上下文
     
@@ -62,10 +62,10 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
   },
   ocean: {
     // === 海洋主题：亮蓝绿色系 ===
-    'usestate': '#29B6F6',         // 亮海蓝 → 状态
-    'useeffect': '#26C6DA',        // 亮青蓝 → 副作用
-    'usememo': '#9575CD',          // 亮紫 → 缓存
-    'usecallback': '#4DB6AC',      // 亮青 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     // 'useref': '#26A69A',           // 亮蓝绿 → 引用 （未使用）
     // 'usecontext': '#42A5F5',       // 亮靛蓝 → 上下文
     // 'usereducer': '#4FC3F7',       // 亮海蓝 → 状态管理
@@ -84,10 +84,10 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
   },
   sunset: {
     // === 日落主题：亮暖色系 ===
-    'usestate': '#FF8A65',         // 亮橙 → 状态
-    'useeffect': '#FF7043',        // 亮橙红 → 副作用
-    'usememo': '#E57373',          // 亮红橙 → 缓存
-    'usecallback': '#FF7043',      // 亮橙红 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     // 'useref': '#EF5350',           // 亮红 → 引用 （未使用）
     // 'usecontext': '#FFB74D',       // 亮琥珀 → 上下文
     // 'usereducer': '#FF7043',       // 亮橙红 → 状态管理
@@ -106,10 +106,10 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
   },
   forest: {
     // === 森林主题：亮绿色系 ===
-    'usestate': '#81C784',         // 亮绿 → 状态
-    'useeffect': '#66BB6A',        // 亮墨绿 → 副作用
-    'usememo': '#9CCC65',          // 亮橄榄绿 → 缓存
-    'usecallback': '#4DB6AC',      // 亮青绿 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     'useref': '#26A69A',           // 亮青 → 引用
     // 'usecontext': '#AED581',       // 亮草绿 → 上下文
     // 'usereducer': '#66BB6A',       // 亮绿色 → 状态管理
@@ -128,10 +128,10 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
   },
   neon: {
     // === 霓虹主题：超亮荧光色 ===
-    'usestate': '#E040FB',         // 超亮荧光紫 → 状态
-    'useeffect': '#69F0AE',        // 超亮荧光绿 → 副作用
-    'usememo': '#B388FF',          // 超亮荧光紫 → 缓存
-    'usecallback': '#18FFFF',      // 超亮荧光青 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     // 'useref': '#EA80FC',           // 超亮紫 → 引用
     // 'usecontext': '#FF9E80',       // 超亮荧光橙 → 上下文
     // 'usereducer': '#E040FB',       // 超亮荧光紫 → 状态管理
@@ -154,10 +154,10 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
 export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
   vibrant: {
     'region': '#A5D6A7',           // 超亮绿 → 区域标识
-    'useeffect': '#FF8A80',        // 超亮红 → 副作用
-    'usestate': '#FFF176',         // 超亮黄 → 状态
-    'usememo': '#64B5F6',          // 超亮蓝 → 缓存
-    'usecallback': '#4DD0E1',      // 超亮青 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     // 'useref': '#BA68C8',           // 超亮紫 → 引用
     // 'usereducer': '#F06292',       // 超亮粉红 → 状态管理
     // 'uselayouteffect': '#A5D6A7',  // 超亮浅绿 → 布局副作用
@@ -175,10 +175,10 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
   },
   soft: {
     'region': '#C8E6C9',           // 超淡雅绿 → 区域标识
-    'useeffect': '#F8BBD9',        // 超淡雅玫瑰粉 → 副作用
-    'usestate': '#FFF9C4',         // 超淡雅鹅黄 → 状态
-    'usememo': '#B3E5FC',          // 超淡雅天蓝 → 缓存
-    'usecallback': '#E1BEE7',      // 超淡雅青绿 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     // 'useref': '#D1C4E9',           // 超淡雅淡紫 → 引用
     // 'usereducer': '#F8BBD9',       // 超淡雅粉红 → 状态管理
     // 'uselayouteffect': '#DCEDC8',  // 超淡雅草绿 → 布局副作用
@@ -196,10 +196,10 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
   },
   ocean: {
     // === 海洋主题：超亮蓝绿色系 ===
-    'usestate': '#81D4FA',         // 超亮天蓝 → 状态
-    'useeffect': '#4DD0E1',        // 超亮青 → 副作用
-    'usememo': '#B39DDB',          // 超亮紫 → 缓存
-    'usecallback': '#9FA8DA',      // 超亮青绿 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     // 'useref': '#80CBC4',           // 超亮绿松石 → 引用
     // 'usecontext': '#64B5F6',       // 超亮蓝 → 上下文
     // 'usereducer': '#4FC3F7',       // 超亮海蓝 → 状态管理
@@ -218,10 +218,10 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
   },
   sunset: {
     // === 日落主题：超亮暖色系 ===
-    'usestate': '#FFAB91',         // 超亮橙 → 状态
-    'useeffect': '#FFCDD2',        // 超亮橙红 → 副作用
-    'usememo': '#FFAB91',          // 超亮红 → 缓存
-    'usecallback': '#FFAB91',      // 超亮深橙 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     // 'useref': '#F8BBD9',           // 超亮粉红 → 引用
     // 'usecontext': '#FFCC02',       // 超亮琥珀 → 上下文
     // 'usereducer': '#FF8A80',       // 超亮橙红 → 状态管理
@@ -240,10 +240,10 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
   },
   forest: {
     // === 森林主题：超亮绿色系 ===
-    'usestate': '#A5D6A7',         // 超亮绿 → 状态
-    'useeffect': '#DCE775',        // 超亮草绿 → 副作用
-    'usememo': '#C5E1A5',          // 超亮橄榄绿 → 缓存
-    'usecallback': '#80CBC4',      // 超亮青绿 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     // 'useref': '#80CBC4',           // 超亮青 → 引用
     // 'usecontext': '#C8E6C9',       // 超亮草绿 → 上下文
     // 'usereducer': '#A5D6A7',       // 超亮绿 → 状态管理
@@ -262,10 +262,10 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
   },
   neon: {
     // === 霓虹主题：极亮荧光色（暗色主题下更炫） ===
-    'usestate': '#EA80FC',         // 极亮紫 → 状态
-    'useeffect': '#A5F3A5',        // 极亮绿 → 副作用
-    'usememo': '#C5A3FF',          // 极亮紫 → 缓存
-    'usecallback': '#84FFFF',      // 极亮青 → 回调
+    'usestate': '#FF8A65',         // 橙色 → 状态
+    'useeffect': '#E8E0F0',        // 浅紫色 → 副作用
+    'usememo': '#FFEB3B',          // 黄色 → 缓存
+    'usecallback': '#A5F3A5',      // 浅绿色 → 回调
     // 'useref': '#F48FB1',           // 极亮粉紫 → 引用
     // 'usecontext': '#FFB74D',       // 极亮橙 → 上下文
     // 'usereducer': '#EA80FC',       // 极亮紫 → 状态管理

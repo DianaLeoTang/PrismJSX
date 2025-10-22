@@ -20,8 +20,6 @@ function ensureDecorationType(): vscode.TextEditorDecorationType {
   const config = vscode.workspace.getConfiguration('codehue');
   const regionColor = config.get<string>('regionColor', 'rgba(76, 175, 80, 0.12)');
   
-  // 调试信息：输出配置值
-  console.log('Region Color Config:', regionColor);
   
   // 如果配置改变，需要重新创建装饰类型
   if (regionDecorationType) {
