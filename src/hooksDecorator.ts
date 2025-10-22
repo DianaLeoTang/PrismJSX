@@ -26,12 +26,28 @@ let isApplyingDecorations = false;
 
 interface DecoratedItem {
   range: vscode.Range;
-  type: 'useState' | 'useEffect' | 'useMemo' | 'useCallback' | 'region';
+  type: HookKeyword | 'region';
   lineContent: string;
 }
 
 /** React Hooks 列表 */
-const HOOK_KEYWORDS = ['useState', 'useEffect', 'useMemo', 'useCallback'] as const;
+const HOOK_KEYWORDS = [
+  'useState', 
+  'useEffect', 
+  'useMemo', 
+  'useCallback',
+  'useRef',
+  'useContext',
+  'useReducer',
+  'useLayoutEffect',
+  'useImperativeHandle',
+  'useDebugValue',
+  'useDeferredValue',
+  'useTransition',
+  'useId',
+  'useSyncExternalStore',
+  'useInsertionEffect'
+] as const;
 type HookKeyword = typeof HOOK_KEYWORDS[number];
 
 /**
@@ -365,6 +381,17 @@ function getHookChineseLabel(hookType: string): string {
     'useEffect': '副作用处理',
     'useMemo': '记忆化计算',
     'useCallback': '记忆回调',
+    'useRef': '引用管理',
+    'useContext': '上下文消费',
+    'useReducer': '状态管理',
+    'useLayoutEffect': '布局副作用',
+    'useImperativeHandle': '命令式句柄',
+    'useDebugValue': '调试值',
+    'useDeferredValue': '延迟值',
+    'useTransition': '过渡状态',
+    'useId': '唯一标识',
+    'useSyncExternalStore': '外部同步',
+    'useInsertionEffect': '插入副作用',
     'region': '区域',
   };
 
