@@ -68,25 +68,25 @@
           "default": true,
           "description": "启用中文语义注释（显示在代码行尾）"
         },
-        "codehue.customUseStateColor": {
-          "type": "string",
-          "default": "",
-          "description": "useState 的自定义颜色（例如：#FF8A65，留空使用默认颜色方案）"
-        },
-        "codehue.customUseEffectColor": {
-          "type": "string",
-          "default": "",
-          "description": "useEffect 的自定义颜色（例如：#42A5F5，留空使用默认颜色方案）"
-        },
-        "codehue.customUseMemoColor": {
-          "type": "string",
-          "default": "",
-          "description": "useMemo 的自定义颜色（例如：#AB47BC，留空使用默认颜色方案）"
-        },
-        "codehue.customUseCallbackColor": {
-          "type": "string",
-          "default": "",
-          "description": "useCallback 的自定义颜色（例如：#26A69A，留空使用默认颜色方案）"
+        "codehue.customHookColors": {
+          "type": "array",
+          "default": [],
+          "description": "自定义 React Hooks 颜色配置",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tag": {
+                "type": "string",
+                "description": "Hook 名称（如：useState, useEffect, useMemo, useCallback）"
+              },
+              "color": {
+                "type": "string",
+                "description": "颜色值（如：#FF8A65）"
+              }
+            },
+            "required": ["tag", "color"],
+            "additionalProperties": false
+          }
         },
         "codehue.enableAITranslation": {
           "type": "boolean",

@@ -117,10 +117,29 @@ function UserProfile() {
 
 ### 🎯 自定义颜色配置
 - `codehue.regionColor`: Region 区域的背景颜色（例如：#A7FFEB）
-- `codehue.customUseStateColor`: useState 的自定义颜色（例如：#FF8A65）
-- `codehue.customUseEffectColor`: useEffect 的自定义颜色（例如：#42A5F5）
-- `codehue.customUseMemoColor`: useMemo 的自定义颜色（例如：#AB47BC）
-- `codehue.customUseCallbackColor`: useCallback 的自定义颜色（例如：#26A69A）
+- `codehue.customHookColors`: React Hooks 自定义颜色配置（JSON 数组格式）
+
+#### 自定义 Hooks 颜色示例：
+```json
+"codehue.customHookColors": [
+  {
+    "tag": "useState",
+    "color": "#FF8A65"
+  },
+  {
+    "tag": "useEffect", 
+    "color": "#A7FFEB"
+  },
+  {
+    "tag": "useMemo",
+    "color": "#FFEB3B"
+  },
+  {
+    "tag": "useCallback",
+    "color": "#A5F3A5"
+  }
+]
+```
 
 ### ⚙️ 功能配置
 - `codehue.enableSemanticComments`: 启用中文语义注释（默认：true）

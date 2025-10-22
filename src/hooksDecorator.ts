@@ -51,27 +51,17 @@ function getColorScheme(): Record<string, string> {
   const schemes = isDarkTheme() ? COLOR_SCHEMES_DARK : COLOR_SCHEMES_LIGHT;
   const baseScheme = schemes[schemeName] || schemes.vibrant;
   
-  // 获取用户自定义颜色配置（扁平化配置）
-  const customUseStateColor = config.get<string>('customUseStateColor', '');
-  const customUseEffectColor = config.get<string>('customUseEffectColor', '');
-  const customUseMemoColor = config.get<string>('customUseMemoColor', '');
-  const customUseCallbackColor = config.get<string>('customUseCallbackColor', '');
+  // 获取用户自定义颜色配置（JSON 数组格式）
+  const customHookColors = config.get<Array<{tag: string, color: string}>>('customHookColors', []);
   
   // 合并自定义颜色（自定义颜色优先级更高）
   const mergedScheme: Record<string, string> = { ...baseScheme };
   
   // 应用自定义颜色（如果设置了的话）
-  if (customUseStateColor && customUseStateColor.trim() !== '') {
-    mergedScheme['usestate'] = customUseStateColor;
-  }
-  if (customUseEffectColor && customUseEffectColor.trim() !== '') {
-    mergedScheme['useeffect'] = customUseEffectColor;
-  }
-  if (customUseMemoColor && customUseMemoColor.trim() !== '') {
-    mergedScheme['usememo'] = customUseMemoColor;
-  }
-  if (customUseCallbackColor && customUseCallbackColor.trim() !== '') {
-    mergedScheme['usecallback'] = customUseCallbackColor;
+  for (const hookConfig of customHookColors) {
+    if (hookConfig.tag && hookConfig.color && hookConfig.color.trim() !== '') {
+      mergedScheme[hookConfig.tag.toLowerCase()] = hookConfig.color;
+    }
   }
   
   return mergedScheme;
