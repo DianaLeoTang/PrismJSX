@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.1.0](https://github.com/DianaLeoTang/PrismJSX/compare/v4.0.0...v4.1.0) (2025-10-22)
+
+
+### ✨ 新功能
+
+*  修改支持region区域也是自定义颜色 ([4cbd583](https://github.com/DianaLeoTang/PrismJSX/commit/4cbd5831f850781b31564a346fd653c475583b4d))
+* 修改代码区域展示从左侧彩虹条改成全屏底色展示 ([e2a5b8f](https://github.com/DianaLeoTang/PrismJSX/commit/e2a5b8f7f66d93535cc6f36585707efe1467503e))
+* 删除不支持的功能以及敏感地址 ([4e5e678](https://github.com/DianaLeoTang/PrismJSX/commit/4e5e6787d532d3ad79ad312fac31349fb88e9dcb))
+* 扁平化配置，获取用户自定义颜色 ([be5c6a0](https://github.com/DianaLeoTang/PrismJSX/commit/be5c6a0cd1bb466b919b0725ae074be8a52b97fd))
+* 支持用户自定义四种hooks的颜色 ([6060782](https://github.com/DianaLeoTang/PrismJSX/commit/6060782d4a3c9c2b5e152bfb80333fa146c378ec))
+* 更新readme文件，增加对自定义hooks颜色的说明 ([3d5a144](https://github.com/DianaLeoTang/PrismJSX/commit/3d5a144ae034e1534721befae55e923869cbe7de))
+* 更新示例文件 ([adb9fe0](https://github.com/DianaLeoTang/PrismJSX/commit/adb9fe0c0de6323cfd964e2e27a1256743bf3e76))
+* 测试代码 ([5c4c548](https://github.com/DianaLeoTang/PrismJSX/commit/5c4c548812921042b335e05271c9c40691b309a8))
+* 调整默认主题色配置 ([900d00d](https://github.com/DianaLeoTang/PrismJSX/commit/900d00dd33178130a7a3a9874bcf4ab32fb7ea05))
+
 ## [4.0.0](https://github.com/DianaLeoTang/PrismJSX/compare/v3.5.0...v4.0.0) (2025-10-17)
 
 
