@@ -121,10 +121,6 @@ function UserProfile() {
 ### 🤖 AI 翻译配置
 - `codehue.enableAITranslation`: 启用 AI 智能翻译（默认：true）
 - `codehue.aiApiKey`: AI 模型 API Key（可选，留空使用内置 Key）
-- `codehue.aiModelBaseUrl`: AI 模型的基础 URL
-  - 办公网访问生产环境：`http://llm-model-hub-apis.sf-express.com`（默认）
-  - 生产环境（内网）：`http://llm-model-hub-apis.int.sfcloud.local:1080`
-  - 测试环境：`http://llm-model-hub-proxy.sit.sf-express.com`
 - `codehue.aiModelName`: AI 模型名称
   - `aiplat/qwen2.5-72b-instruct`（推荐，翻译质量最高）
   - `aiplat/qwen2.5-vl-72b`（视觉语言模型）

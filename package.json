@@ -123,6 +123,26 @@
             "Qwen2.5 VL 72B 视觉语言模型",
             "Qwen3 4B 轻量模型"
           ]
+        },
+        "codehue.customUseStateColor": {
+          "type": "string",
+          "default": "",
+          "description": "useState 的自定义颜色（例如：#FF8A65，留空使用默认颜色方案）"
+        },
+        "codehue.customUseEffectColor": {
+          "type": "string",
+          "default": "",
+          "description": "useEffect 的自定义颜色（例如：#42A5F5，留空使用默认颜色方案）"
+        },
+        "codehue.customUseMemoColor": {
+          "type": "string",
+          "default": "",
+          "description": "useMemo 的自定义颜色（例如：#AB47BC，留空使用默认颜色方案）"
+        },
+        "codehue.customUseCallbackColor": {
+          "type": "string",
+          "default": "",
+          "description": "useCallback 的自定义颜色（例如：#26A69A，留空使用默认颜色方案）"
         }
       }
     }
