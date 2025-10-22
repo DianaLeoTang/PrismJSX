@@ -3,7 +3,6 @@ import { publishExclusionRanges, getLastExclusionRanges } from './exclusionBus';
 
 let regionDecorationType: vscode.TextEditorDecorationType | null = null;
 let cachedRegions: vscode.Range[] = [];
-const REGION_COLOR = '#85e0a3';
 
 // 允许“行尾注释里的标记”，大小写不敏感
 // 例：code ... // #region 费用明细弹窗
@@ -19,7 +18,9 @@ export const onRegionsChanged = _regionEmitter.event;
 // 确保装饰类型
 function ensureDecorationType(): vscode.TextEditorDecorationType {
   const config = vscode.workspace.getConfiguration('codehue');
-  const stripeWidth = config.get<string>('stripeWidth', '3px');
+  // const stripeWidth = config.get<string>('stripeWidth', '3px');
+  const regionColor = config.get<string>('regionColor', 'rgba(76, 175, 80, 0.12)');
+  // const regionBorder = config.get<string>('regionBorder', '1px solid rgba(76,175,80,0.45)');
   
   // 如果配置改变，需要重新创建装饰类型
   if (regionDecorationType) {
@@ -29,11 +30,12 @@ function ensureDecorationType(): vscode.TextEditorDecorationType {
   
   regionDecorationType = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
-    borderStyle: 'solid',
-    borderColor: REGION_COLOR,
-    borderWidth: `0 0 0 ${stripeWidth}`,
-    overviewRulerColor: REGION_COLOR,
-    overviewRulerLane: vscode.OverviewRulerLane.Left,
+    backgroundColor: regionColor,  // 使用 regionColor 作为背景色
+    // 使用更柔和的边框样式，避免与左侧条纹冲突
+    border: `1px solid ${regionColor}20`, // 使用半透明边框
+    borderWidth: '1px 0 1px 0',           // 只显示上下边框
+    overviewRulerColor: regionColor,
+    overviewRulerLane: vscode.OverviewRulerLane.Right,
   });
   return regionDecorationType;
 }

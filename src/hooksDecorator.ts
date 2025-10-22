@@ -78,12 +78,10 @@ function getColorScheme(): Record<string, string> {
 }
 
 /**
- * 获取左侧条纹装饰
+ * 获取背景色装饰
  */
-function getLeftStripeDecoration(color: string): vscode.TextEditorDecorationType {
-  const config = vscode.workspace.getConfiguration('codehue');
-  const stripeWidth = config.get<string>('stripeWidth', '3px');
-  const cacheKey = `${color}-${stripeWidth}`;
+function getBackgroundDecoration(color: string): vscode.TextEditorDecorationType {
+  const cacheKey = `${color}-bg`;
 
   if (stripeTypeCache.has(cacheKey)) {
     return stripeTypeCache.get(cacheKey)!;
@@ -91,9 +89,7 @@ function getLeftStripeDecoration(color: string): vscode.TextEditorDecorationType
 
   const dt = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
-    borderStyle: 'solid',
-    borderColor: color,
-    borderWidth: `0 0 0 ${stripeWidth}`,
+    backgroundColor: color,
     overviewRulerColor: color,
     overviewRulerLane: vscode.OverviewRulerLane.Left,
   });
@@ -444,7 +440,7 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
     // 将 Hook 类型转换为小写以匹配颜色配置
     const colorKey = type.toLowerCase();
     const color = colorScheme[colorKey] || colorScheme['default'];
-    const dt = getLeftStripeDecoration(color);
+    const dt = getBackgroundDecoration(color);
     editor.setDecorations(dt, ranges);
   }
 
