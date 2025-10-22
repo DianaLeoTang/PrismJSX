@@ -18,9 +18,10 @@ export const onRegionsChanged = _regionEmitter.event;
 // 确保装饰类型
 function ensureDecorationType(): vscode.TextEditorDecorationType {
   const config = vscode.workspace.getConfiguration('codehue');
-  // const stripeWidth = config.get<string>('stripeWidth', '3px');
   const regionColor = config.get<string>('regionColor', 'rgba(76, 175, 80, 0.12)');
-  // const regionBorder = config.get<string>('regionBorder', '1px solid rgba(76,175,80,0.45)');
+  
+  // 调试信息：输出配置值
+  console.log('Region Color Config:', regionColor);
   
   // 如果配置改变，需要重新创建装饰类型
   if (regionDecorationType) {
@@ -31,9 +32,6 @@ function ensureDecorationType(): vscode.TextEditorDecorationType {
   regionDecorationType = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     backgroundColor: regionColor,  // 使用 regionColor 作为背景色
-    // 使用更柔和的边框样式，避免与左侧条纹冲突
-    border: `1px solid ${regionColor}20`, // 使用半透明边框
-    borderWidth: '1px 0 1px 0',           // 只显示上下边框
     overviewRulerColor: regionColor,
     overviewRulerLane: vscode.OverviewRulerLane.Right,
   });
