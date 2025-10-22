@@ -36,6 +36,7 @@ export function HooksTestComponent() {
   }, [count]);
 
   // 测试 useCallback - 应该显示你配置的 useCallback 颜色
+
   const handleClick = useCallback(() => {
     setCount(prev => prev + 1);
   }, []);
@@ -48,6 +49,16 @@ export function HooksTestComponent() {
   const handleToggle = useCallback(() => {
     setIsVisible(prev => !prev);
   }, []);
+
+
+  //#region 开始
+  const a=()=>{
+    console.log(1)
+  }
+  const b=()=>{
+    console.log(2)
+  }
+  //#endregion
 
   return (
     <div>

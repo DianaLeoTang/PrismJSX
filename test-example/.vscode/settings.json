@@ -1,17 +1,20 @@
 {
-  // CodeHue 自定义颜色配置示例
+  // CodeHue 配置示例
   // 在调试模式下，这些配置会覆盖默认的颜色方案
   
-  "codehue.customColors": {
-    "useState": "#FF8A65",
-         "useEffect": "#5E35B1",
-         "useMemo": "#FFEB3B",
-         "useCallback": "#A5F3A5"    // 紫色 - 用于测试 useCallback
-  },
-  
-  // 其他 CodeHue 配置
+  // 颜色方案（现在默认使用统一的颜色）
   "codehue.colorScheme": "vibrant",
+  
+  // Region 区域配置
+  "codehue.regionColor": "#A7FFEB",
+  
+  // 功能开关
   "codehue.enableSemanticComments": true,
-  "codehue.stripeWidth": "3px"
+  "codehue.enableAITranslation": false,
+  
+  // AI 配置（示例）
+  "codehue.aiApiKey": "",
+  "codehue.aiModelBaseUrl": "https://api.example.com/v1",
+  "codehue.aiModelName": "gpt-3.5-turbo"
 }
 
