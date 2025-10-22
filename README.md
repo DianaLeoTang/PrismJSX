@@ -137,9 +137,78 @@ function UserProfile() {
   {
     "tag": "useCallback",
     "color": "#A5F3A5"
+  },
+  {
+    "tag": "useRef",
+    "color": "#FF6B6B"
+  },
+  {
+    "tag": "useContext",
+    "color": "#4ECDC4"
+  },
+  {
+    "tag": "useReducer",
+    "color": "#45B7D1"
+  },
+  {
+    "tag": "useLayoutEffect",
+    "color": "#96CEB4"
+  },
+  {
+    "tag": "useImperativeHandle",
+    "color": "#FFEAA7"
+  },
+  {
+    "tag": "useDebugValue",
+    "color": "#DDA0DD"
+  },
+  {
+    "tag": "useDeferredValue",
+    "color": "#98D8C8"
+  },
+  {
+    "tag": "useTransition",
+    "color": "#F7DC6F"
+  },
+  {
+    "tag": "useId",
+    "color": "#BB8FCE"
+  },
+  {
+    "tag": "useSyncExternalStore",
+    "color": "#85C1E9"
+  },
+  {
+    "tag": "useInsertionEffect",
+    "color": "#F8C471"
   }
 ]
 ```
+
+### 🎯 支持的 React Hooks
+
+CodeHue 现在支持以下 React Hooks 的颜色自定义：
+
+#### 基础 Hooks
+- `useState` - 状态管理
+- `useEffect` - 副作用处理
+- `useContext` - 上下文消费
+
+#### 额外 Hooks
+- `useReducer` - 状态管理
+- `useCallback` - 记忆回调
+- `useMemo` - 记忆化计算
+- `useRef` - 引用管理
+- `useImperativeHandle` - 命令式句柄
+- `useLayoutEffect` - 布局副作用
+- `useDebugValue` - 调试值
+
+#### 并发特性 Hooks
+- `useDeferredValue` - 延迟值
+- `useTransition` - 过渡状态
+- `useId` - 唯一标识
+- `useSyncExternalStore` - 外部同步
+- `useInsertionEffect` - 插入副作用
 
 ### ⚙️ 功能配置
 - `codehue.enableSemanticComments`: 启用中文语义注释（默认：true）
