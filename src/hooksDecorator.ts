@@ -43,13 +43,28 @@ function isDarkTheme(): boolean {
 }
 
 /**
- * 获取当前配置的颜色方案
+ * 获取当前配置的颜色方案（合并自定义颜色）
  */
 function getColorScheme(): Record<string, string> {
   const config = vscode.workspace.getConfiguration('codehue');
   const schemeName = config.get<string>('colorScheme', 'vibrant');
   const schemes = isDarkTheme() ? COLOR_SCHEMES_DARK : COLOR_SCHEMES_LIGHT;
-  return schemes[schemeName] || schemes.vibrant;
+  const baseScheme = schemes[schemeName] || schemes.vibrant;
+  
+  // 获取用户自定义颜色配置
+  const customColors = config.get<Record<string, string>>('customColors', {});
+  
+  // 合并自定义颜色（自定义颜色优先级更高）
+  const mergedScheme: Record<string, string> = { ...baseScheme };
+  
+  // 将用户自定义颜色转换为小写键名并合并
+  for (const [hookName, color] of Object.entries(customColors)) {
+    if (color && typeof color === 'string' && color.trim() !== '') {
+      mergedScheme[hookName.toLowerCase()] = color;
+    }
+  }
+  
+  return mergedScheme;
 }
 
 /**
