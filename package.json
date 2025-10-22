@@ -37,36 +37,10 @@
     "configuration": {
       "title": "CodeHue",
       "properties": {
-        "codehue.regionColor": {
-          "type": "string",
-          "default": "rgba(76, 175, 80, 0.12)",
-          "description": "Background color for // #region ... // #endregion ... blocks"
-        },
-        "codehue.regionBorder": {
-          "type": "string",
-          "default": "1px solid rgba(76,175,80,0.45)",
-          "description": "CSS-like border for region blocks"
-        },
-        "codehue.stripeWidth": {
-          "type": "string",
-          "default": "3px",
-          "description": "Width of the left color stripe for functions",
-          "enum": [
-            "2px",
-            "3px",
-            "4px",
-            "5px"
-          ]
-        },
-        "codehue.enableSemanticComments": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable inline semantic Chinese comments for functions"
-        },
         "codehue.colorScheme": {
           "type": "string",
           "default": "vibrant",
-          "description": "Color scheme for function decorations (automatically adapts to light/dark theme)",
+          "description": "颜色方案（自动适配亮色/暗色主题）",
           "enum": [
             "vibrant",
             "soft",
@@ -84,45 +58,15 @@
             "霓虹风格 - 荧光色，炫酷科技感"
           ]
         },
-        "codehue.enableAITranslation": {
+        "codehue.regionColor": {
+          "type": "string",
+          "default": "rgba(76, 175, 80, 0.12)",
+          "description": "Region 区域的背景颜色（例如：#A7FFEB）"
+        },
+        "codehue.enableSemanticComments": {
           "type": "boolean",
           "default": true,
-          "description": "启用 AI 智能翻译（关闭后将显示原函数名）"
-        },
-        "codehue.aiApiKey": {
-          "type": "string",
-          "default": "",
-          "description": "AI 模型 API Key（可选，留空使用内置 Key）"
-        },
-        "codehue.aiModelBaseUrl": {
-          "type": "string",
-          "default": "http://llm-model-hub-apis.sf-express.com",
-          "description": "AI模型的基础URL（高级选项）",
-          "enum": [
-            "http://llm-model-hub-apis.sf-express.com",
-            "http://llm-model-hub-apis.int.sfcloud.local:1080",
-            "http://llm-model-hub-proxy.sit.sf-express.com"
-          ],
-          "enumDescriptions": [
-            "办公网访问生产环境（默认80端口）",
-            "生产环境（内网）",
-            "测试环境"
-          ]
-        },
-        "codehue.aiModelName": {
-          "type": "string",
-          "default": "aiplat/qwen2.5-72b-instruct",
-          "description": "AI模型名称（高级选项，大小写敏感）",
-          "enum": [
-            "aiplat/qwen2.5-72b-instruct",
-            "aiplat/qwen2.5-vl-72b",
-            "Qwen3-4B"
-          ],
-          "enumDescriptions": [
-            "Qwen2.5 72B 指令模型（推荐）",
-            "Qwen2.5 VL 72B 视觉语言模型",
-            "Qwen3 4B 轻量模型"
-          ]
+          "description": "启用中文语义注释（显示在代码行尾）"
         },
         "codehue.customUseStateColor": {
           "type": "string",
@@ -143,6 +87,26 @@
           "type": "string",
           "default": "",
           "description": "useCallback 的自定义颜色（例如：#26A69A，留空使用默认颜色方案）"
+        },
+        "codehue.enableAITranslation": {
+          "type": "boolean",
+          "default": true,
+          "description": "启用 AI 智能翻译（关闭后将显示原函数名）"
+        },
+        "codehue.aiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "AI 模型 API Key（请填入您自己的 API Key）"
+        },
+        "codehue.aiModelBaseUrl": {
+          "type": "string",
+          "default": "https://api.example.com/v1",
+          "description": "AI 模型的基础 URL（请填入您自己的 API 地址）"
+        },
+        "codehue.aiModelName": {
+          "type": "string",
+          "default": "gpt-3.5-turbo",
+          "description": "AI 模型名称（请根据您的 API 提供商填入正确的模型名称）"
         }
       }
     }

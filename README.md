@@ -114,14 +114,22 @@ function UserProfile() {
   - `sunset`（日落）- 暖色调，温暖活力
   - `forest`（森林）- 绿色系，沉稳专注
   - `neon`（霓虹）- 荧光色，炫酷科技感
-- `codehue.stripeWidth`: 左侧条纹宽度（2px/3px/4px/5px）
-- `codehue.regionColor`: Region 区域的背景颜色
-- `codehue.regionBorder`: Region 区域的边框样式
+
+### 🎯 自定义颜色配置
+- `codehue.regionColor`: Region 区域的背景颜色（例如：#A7FFEB）
+- `codehue.customUseStateColor`: useState 的自定义颜色（例如：#FF8A65）
+- `codehue.customUseEffectColor`: useEffect 的自定义颜色（例如：#42A5F5）
+- `codehue.customUseMemoColor`: useMemo 的自定义颜色（例如：#AB47BC）
+- `codehue.customUseCallbackColor`: useCallback 的自定义颜色（例如：#26A69A）
+
+### ⚙️ 功能配置
+- `codehue.enableSemanticComments`: 启用中文语义注释（默认：true）
 
 ### 🤖 AI 翻译配置
 - `codehue.enableAITranslation`: 启用 AI 智能翻译（默认：true）
-- `codehue.aiApiKey`: AI 模型 API Key（可选，留空使用内置 Key）
-- `codehue.aiModelName`: AI 模型名称
+- `codehue.aiApiKey`: AI 模型 API Key（请填入您自己的 API Key）
+- `codehue.aiModelBaseUrl`: AI 模型的基础 URL（请填入您自己的 API 地址）
+- `codehue.aiModelName`: AI 模型名称（请根据您的 API 提供商填入正确的模型名称）
   - `aiplat/qwen2.5-72b-instruct`（推荐，翻译质量最高）
   - `aiplat/qwen2.5-vl-72b`（视觉语言模型）
   - `Qwen3-4B`（轻量模型，响应快）
@@ -258,7 +266,7 @@ CodeHue 集成了顺丰私有云 AI 模型，可智能翻译函数名为中文�
 {
   "codehue.enableAITranslation": true,
   "codehue.aiApiKey": "your-api-key",
-  "codehue.aiModelBaseUrl": "http://llm-model-hub-apis.sf-express.com",
+  "codehue.aiModelBaseUrl": "https://api.example.com/v1",
   "codehue.aiModelName": "aiplat/qwen2.5-72b-instruct"
 }
 ```
