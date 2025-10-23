@@ -134,8 +134,8 @@ let pauseUntil = 0;
  */
 async function translateBatch(functionNames: string[], retryCount: number = 0): Promise<Map<string, string>> {
   const config = vscode.workspace.getConfiguration('codehue');
-  const baseUrl = config.get<string>('aiModelBaseUrl', 'http://llm-model-hub-apis.sf-express.com');
-  const model = config.get<string>('aiModelName', 'aiplat/qwen2.5-72b-instruct');
+  const baseUrl = config.get<string>('aiModelBaseUrl') || 'http://llm-model-hub-apis.sf-express.com';
+  const model = config.get<string>('aiModelName') || 'aiplat/qwen2.5-72b-instruct';
   const apiKey = getApiKey();
   
   if (!apiKey) {

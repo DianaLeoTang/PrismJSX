@@ -14,13 +14,10 @@
 
 import * as vscode from 'vscode';
 import { COLOR_SCHEMES_LIGHT, COLOR_SCHEMES_DARK } from './colorSchemes';
-import { translateFunctionNameToChinese, TranslationPriority } from './semanticTranslator';
+import { translateFunctionNameToChinese, translateFunctionNameToChineseSync, TranslationPriority } from './semanticTranslator';
 import { 
   VueComponentType, 
   VueDecoratedItem,
-  RAINBOW_COLORS,
-  FUNCTION_COLORS,
-  COMMON_COMPONENTS
 } from './vueTypes';
 import {
   detectVueCompositionAPI,
@@ -37,7 +34,8 @@ import {
   getRainbowColor,
   getFunctionColor
 } from './vueDetectors';
-
+// 翻译请求追踪器
+const translationInProgress = new Set<string>();
 /** 颜色条缓存：不同颜色 → 独立 DecorationType */
 const stripeTypeCache = new Map<string, vscode.TextEditorDecorationType>();
 
@@ -114,7 +112,7 @@ function getVueChineseLabel(type: VueComponentType): string {
     'vue-computed': '计算属性',
     'vue-watch': '监听器',
     'vue-ref': '响应式数据',
-    'vue-function': 'Vue函数',
+    'vue-function': '', // 移除硬编码，使用AI翻译
     'vue-div-block': '模板块',
     'vant-popup': '弹窗组件',
     'vant-toast': '轻提示组件',
@@ -485,19 +483,32 @@ export function applyVueDecorations(editor: vscode.TextEditor, items: VueDecorat
         }
       }
       
-      // 如果是Vue函数，尝试翻译函数名
+      // 如果是Vue函数，优先使用AI翻译
       if (item.type === 'vue-function') {
         const functionName = extractVueFunctionName(item.lineContent);
         if (functionName) {
-          // 异步获取翻译，但不阻塞主流程
-          translateFunctionNameToChinese(functionName, TranslationPriority.INVISIBLE_CURRENT_FILE, editor.document.uri.toString())
-            .then(translation => {
-              // 翻译完成后刷新装饰 - 移除死循环
-              // 注释：翻译完成后会自动触发重新渲染，不需要手动调用
-            })
-            .catch(() => {
-              // 翻译失败，使用默认标签
-            });
+          // 先尝试同步获取缓存的翻译结果
+          const cachedTranslation = translateFunctionNameToChineseSync(
+            functionName, 
+            TranslationPriority.VISIBLE_CURRENT_FILE, 
+            editor.document.uri.toString()
+          );
+          
+          if (cachedTranslation && cachedTranslation !== functionName) {
+            chineseLabel = cachedTranslation;
+          } else {
+            // 如果没有缓存，先使用函数名，然后异步获取翻译
+            chineseLabel = functionName;
+            
+            // 启动异步翻译，但不阻塞主流程
+            translateFunctionNameToChinese(functionName, TranslationPriority.VISIBLE_CURRENT_FILE, editor.document.uri.toString())
+              .then(translation => {
+                // 翻译完成后会自动触发重新渲染
+              })
+              .catch(() => {
+                // 翻译失败，保持使用函数名
+              });
+          }
         }
       }
       
