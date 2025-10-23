@@ -43,7 +43,18 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'region': '#66BB6A',           // 亮绿 → 区域标识
     // 'component': '#5E35B1',        // 亮靛蓝 → 组件
     // 'handler': '#E57373',          // 亮红 → 事件处理
-    'default': '#757575'           // 亮灰 → 默认函数
+    'default': '#757575',          // 亮灰 → 默认函数
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.3)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.3)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.3)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.3)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.3)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.3)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.3)',              // 桃色 → 响应式数据
+    'vue-function': 'rgba(230, 230, 250, 0.3)',         // 薰衣草 → Vue函数
+    'vue-div-block': 'rgba(255, 228, 196, 0.3)'         // 米色 → 模板块
   },
   soft: {
     // === 高频 Hooks（6大主色，差异明显）===
@@ -80,7 +91,19 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'region': '#81C784',           // 亮绿色 → 区域标识
     // 'component': '#7986CB',        // 亮靛蓝 → 组件
     // 'handler': '#EF5350',          // 亮红色 → 事件处理
-    'default': '#90A4AE'           // 亮灰色 → 默认函数
+    'default': '#90A4AE',          // 亮灰色 → 默认函数
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   },
   ocean: {
     // === 海洋主题：亮蓝绿色系 ===
@@ -113,7 +136,19 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'region': '#4DB6AC',           // 亮绿 → 区域
     // 'component': '#7986CB',        // 亮靛蓝 → 组件
     // 'handler': '#26A69A',          // 亮绿 → 事件处理
-    'default': '#90A4AE'           // 亮蓝灰 → 默认
+    'default': '#90A4AE',          // 亮蓝灰 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   },
   sunset: {
     // === 日落主题：亮暖色系 ===
@@ -135,7 +170,19 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'region': '#AED581',           // 亮橄榄绿 → 区域
     // 'component': '#A1887F',        // 亮棕色 → 组件 （未使用）  
     // 'handler': '#E57373',          // 亮红 → 事件处理 （未使用）  
-    'default': '#BCAAA4'           // 亮棕灰 → 默认
+    'default': '#BCAAA4',          // 亮棕灰 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   },
   forest: {
     // === 森林主题：亮绿色系 ===
@@ -157,7 +204,19 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'region': '#66BB6A',           // 亮墨绿 → 区域
     // 'component': '#9CCC65',        // 亮橄榄绿 → 组件
     // 'handler': '#C0CA33',          // 亮橄榄 → 事件处理
-    'default': '#90A4AE'           // 亮灰 → 默认
+    'default': '#90A4AE',          // 亮灰 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   },
   neon: {
     // === 霓虹主题：超亮荧光色 ===
@@ -179,7 +238,19 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'region': '#69F0AE',           // 超亮荧光绿 → 区域
     // 'component': '#E040FB',        // 超亮荧光紫 → 组件
     // 'handler': '#FF5252',          // 超亮荧光红 → 事件处理
-    'default': '#BDBDBD'           // 亮灰色 → 默认
+    'default': '#BDBDBD',          // 亮灰色 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   }
 };
 
@@ -204,7 +275,19 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'useinsertioneffect': '#F8BBD9', // 超亮玫红 → 插入副作用
     // 'component': '#CE93D8',        // 超亮紫 → 组件
     // 'handler': '#F8BBD9',          // 超亮粉红 → 事件处理
-    'default': '#FFCC02'           // 超亮橙 → 默认
+    'default': '#FFCC02',          // 超亮橙 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   },
   soft: {
     'region': '#C8E6C9',           // 超淡雅绿 → 区域标识
@@ -225,7 +308,19 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'useinsertioneffect': '#F8BBD9', // 超淡雅玫瑰粉 → 插入副作用
     // 'component': '#D1C4E9',        // 超淡雅淡紫蓝 → 组件
     // 'handler': '#FFCDD2',          // 超淡雅粉橙 → 事件处理
-    'default': '#FFF3E0'           // 超淡雅米杏色 → 默认
+    'default': '#FFF3E0',          // 超淡雅米杏色 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   },
   ocean: {
     // === 海洋主题：超亮蓝绿色系 ===
@@ -247,7 +342,19 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'region': '#80CBC4',           // 超亮绿松石 → 区域
     // 'component': '#9FA8DA',        // 超亮靛蓝 → 组件
     // 'handler': '#80CBC4',          // 超亮绿松石 → 事件处理
-    'default': '#B0BEC5'           // 超亮蓝灰 → 默认
+    'default': '#B0BEC5',          // 超亮蓝灰 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   },
   sunset: {
     // === 日落主题：超亮暖色系 ===
@@ -269,7 +376,19 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'region': '#C8E6C9',           // 超亮橄榄绿 → 区域
     // 'component': '#D7CCC8',        // 超亮棕色 → 组件
     // 'handler': '#FFAB91',          // 超亮红 → 事件处理
-    'default': '#D7CCC8'           // 超亮棕灰 → 默认
+    'default': '#D7CCC8',          // 超亮棕灰 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   },
   forest: {
     // === 森林主题：超亮绿色系 ===
@@ -291,7 +410,19 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'region': '#A5D6A7',           // 超亮草绿 → 区域
     // 'component': '#C5E1A5',        // 超亮橄榄绿 → 组件
     // 'handler': '#DCE775',          // 超亮橄榄 → 事件处理
-    'default': '#F5F5F5'           // 超亮灰 → 默认
+    'default': '#F5F5F5',          // 超亮灰 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   },
   neon: {
     // === 霓虹主题：极亮荧光色（暗色主题下更炫） ===
@@ -313,7 +444,19 @@ export const COLOR_SCHEMES_DARK: Record<string, ColorSchemeMap> = {
     'region': '#A5F3A5',           // 极亮绿 → 区域
     // 'component': '#EA80FC',        // 极亮紫 → 组件
     // 'handler': '#FF8A80',          // 极亮红 → 事件处理
-    'default': '#E0E0E0'           // 极亮灰 → 默认
+    'default': '#E0E0E0',          // 极亮灰 → 默认
+    
+    // === Vue 专用颜色 - 马卡龙色系 ===
+    'vue-composition-api': 'rgba(144, 238, 144, 0.15)',  // 薄荷绿 → 组合式API
+    'vue-lifecycle': 'rgba(176, 224, 230, 0.15)',        // 淡青 → 生命周期
+    'vue-directive': 'rgba(255, 182, 193, 0.15)',        // 樱花粉 → 模板指令
+    'vue-event': 'rgba(173, 216, 230, 0.15)',            // 浅蓝 → 事件处理
+    'vue-computed': 'rgba(221, 160, 221, 0.15)',         // 淡紫 → 计算属性
+    'vue-watch': 'rgba(255, 192, 203, 0.15)',            // 粉红 → 监听器
+    'vue-ref': 'rgba(255, 218, 185, 0.15)',              // 桃色 → 响应式数据
+    'vue-template': 'rgba(152, 251, 152, 0.12)',         // 春绿 → 模板区域
+    'vue-script': 'rgba(230, 230, 250, 0.12)',           // 薰衣草 → 脚本区域
+    'vue-style': 'rgba(255, 228, 196, 0.12)'             // 米色 → 样式区域
   }
 };
 
