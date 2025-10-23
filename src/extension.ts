@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { disposeFunctionDecorations, refreshFunctionDecorations } from './functionDecorator';
 import { applyRegionDecorations, disposeRegionDecorations,  onRegionsChanged } from './regionDecorator';
 import { clearTranslationCache, setTranslationCompleteCallback, initializeCache } from './semanticTranslator';
-import { applyHooksAndRegionsDecorations } from './hooksDecorator'
+import { applyHooksAndRegionsDecorations } from './hooksDecorator';
+import { applyVueDecorations, disposeVueDecorations } from './vueDecorator';
 // 防抖定时器
 let debounceTimer: NodeJS.Timeout | undefined;
 
@@ -31,8 +32,14 @@ function applyAll(editor: vscode.TextEditor, force = false) {
   
   // 先渲染 region（也会计算并发布 suppress 范围）
   applyRegionDecorations(editor);
-  // 再渲染函数，并对 region 进行相减
-  applyHooksAndRegionsDecorations(editor);
+  
+  // 根据文件类型应用不同的装饰
+  if (editor.document.languageId === 'vue') {
+    applyVueDecorations(editor);
+  } else {
+    // 再渲染函数，并对 region 进行相减
+    applyHooksAndRegionsDecorations(editor);
+  }
   
   // 记录已处理的版本
   lastProcessedVersion.set(docUri, docVersion);
@@ -181,6 +188,7 @@ function isCodeFile(doc: vscode.TextDocument): boolean {
 function disposeAll() {
   disposeFunctionDecorations();
   disposeRegionDecorations();
+  disposeVueDecorations();
 }
 
 // 停用扩展
