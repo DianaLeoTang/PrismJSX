@@ -44,6 +44,7 @@ type VueComponentType =
   | 'vue-lifecycle-activated'       // onActivated
   | 'vue-lifecycle-deactivated'     // onDeactivated
   | 'vue-directive'        // 模板指令
+  | 'vue-directive-block' // 模板指令块（包含指令的HTML标签）
   | 'vue-event'           // 事件处理
   | 'vue-computed'        // 计算属性
   | 'vue-watch'           // 监听器
@@ -434,7 +435,264 @@ function getFunctionColor(index: number): string {
 }
 
 /**
- * 检测Vant组件
+ * 检测Vue模板指令块（包含指令的HTML标签）
+ */
+function detectVueDirectiveBlock(doc: vscode.TextDocument, templateRange: vscode.Range): Array<{range: vscode.Range, directiveType: string, tagName: string}> {
+  const directiveBlocks: Array<{range: vscode.Range, directiveType: string, tagName: string}> = [];
+  
+  for (let i = templateRange.start.line; i <= templateRange.end.line; i++) {
+    const line = doc.lineAt(i).text;
+    
+    // 检测包含Vue指令的HTML标签
+    const directivePatterns = [
+      // v-if指令
+      { pattern: /<(\w+)[^>]*\s+v-if\s*=\s*["'][^"']*["'][^>]*>/, directiveType: 'v-if', tagName: '' },
+      // v-for指令
+      { pattern: /<(\w+)[^>]*\s+v-for\s*=\s*["'][^"']*["'][^>]*>/, directiveType: 'v-for', tagName: '' },
+      // v-show指令
+      { pattern: /<(\w+)[^>]*\s+v-show\s*=\s*["'][^"']*["'][^>]*>/, directiveType: 'v-show', tagName: '' },
+      // v-model指令
+      { pattern: /<(\w+)[^>]*\s+v-model[^>]*>/, directiveType: 'v-model', tagName: '' },
+      // v-else指令
+      { pattern: /<(\w+)[^>]*\s+v-else[^>]*>/, directiveType: 'v-else', tagName: '' },
+      // v-else-if指令
+      { pattern: /<(\w+)[^>]*\s+v-else-if\s*=\s*["'][^"']*["'][^>]*>/, directiveType: 'v-else-if', tagName: '' }
+    ];
+    
+    let matchFound = false;
+    let directiveType = '';
+    let tagName = '';
+    
+    for (const { pattern, directiveType: type } of directivePatterns) {
+      const match = line.match(pattern);
+      if (match) {
+        tagName = match[1] || 'div';
+        directiveType = type;
+        matchFound = true;
+        break;
+      }
+    }
+    
+    if (matchFound) {
+      const startLine = i;
+      let endLine = i;
+      
+      // 查找标签的结束位置
+      const tagEndPattern = new RegExp(`</${tagName}>`, 'i');
+      
+      // 标记是否找到闭合标签
+      let foundClosing = false;
+      
+      // 从当前行开始查找标签的结束位置（支持多行标签）
+      for (let j = i; j <= templateRange.end.line; j++) {
+        const currentLine = doc.lineAt(j).text;
+        
+        // 检查是否包含自闭合标签结束符 />
+        if (currentLine.includes('/>')) {
+          endLine = j;
+          foundClosing = true;
+          break;
+        }
+        
+        // 检查是否包含正常的结束标签 </tagName>
+        if (tagEndPattern.test(currentLine)) {
+          endLine = j;
+          foundClosing = true;
+          break;
+        }
+        
+        // 检查是否包含开始标签的结束符 >（但不是 />）
+        const tagCloseMatch = currentLine.match(/>\s*$/);
+        if (tagCloseMatch && j > i && !currentLine.includes('/>')) {
+          // 找到了开始标签的结束，现在需要找到配对的结束标签
+          let tagCount = 1;
+          for (let k = j + 1; k <= templateRange.end.line; k++) {
+            const searchLine = doc.lineAt(k).text;
+            
+            // 检查是否有同名的新开始标签（完整的单行标签）
+            const newStartPattern = new RegExp(`<${tagName}\\b[^>]*>`, 'i');
+            if (newStartPattern.test(searchLine) && !searchLine.includes('/>')) {
+              tagCount++;
+            }
+            
+            // 检查是否有结束标签
+            if (tagEndPattern.test(searchLine)) {
+              tagCount--;
+              if (tagCount === 0) {
+                endLine = k;
+                foundClosing = true;
+                break;
+              }
+            }
+          }
+          break;
+        }
+      }
+      
+      // 只有找到闭合标签且是多行时才添加
+      if (foundClosing && (endLine - startLine + 1) > 1) {
+        directiveBlocks.push({
+          range: new vscode.Range(
+            new vscode.Position(startLine, 0),
+            new vscode.Position(endLine, doc.lineAt(endLine).text.length)
+          ),
+          directiveType,
+          tagName
+        });
+      }
+    }
+  }
+  
+  return directiveBlocks;
+}
+
+/**
+ * 检测Vant组件块（整个组件标签）
+ */
+function detectVantComponentBlock(doc: vscode.TextDocument, templateRange: vscode.Range): Array<{range: vscode.Range, componentName: string, componentType: VueComponentType}> {
+  const vantComponentBlocks: Array<{range: vscode.Range, componentName: string, componentType: VueComponentType}> = [];
+  
+  for (let i = templateRange.start.line; i <= templateRange.end.line; i++) {
+    const line = doc.lineAt(i).text;
+    
+    // 检测Vant组件开始
+    const vantPatterns = [
+      // Popup组件
+      { pattern: /<van-popup\b/, componentName: 'Popup', componentType: 'vant-popup' as VueComponentType },
+      { pattern: /<Popup\b/, componentName: 'Popup', componentType: 'vant-popup' as VueComponentType },
+      
+      // Toast组件
+      { pattern: /<van-toast\b/, componentName: 'Toast', componentType: 'vant-toast' as VueComponentType },
+      { pattern: /<Toast\b/, componentName: 'Toast', componentType: 'vant-toast' as VueComponentType },
+      
+      // List组件
+      { pattern: /<van-list\b/, componentName: 'List', componentType: 'vant-list' as VueComponentType },
+      { pattern: /<List\b/, componentName: 'List', componentType: 'vant-list' as VueComponentType },
+      
+      // Field组件
+      { pattern: /<van-field\b/, componentName: 'Field', componentType: 'vant-field' as VueComponentType },
+      { pattern: /<Field\b/, componentName: 'Field', componentType: 'vant-field' as VueComponentType },
+      
+      // Picker组件
+      { pattern: /<van-picker\b/, componentName: 'Picker', componentType: 'vant-picker' as VueComponentType },
+      { pattern: /<Picker\b/, componentName: 'Picker', componentType: 'vant-picker' as VueComponentType },
+      
+      // Tabs组件
+      { pattern: /<van-tabs\b/, componentName: 'Tabs', componentType: 'vant-tabs' as VueComponentType },
+      { pattern: /<Tabs\b/, componentName: 'Tabs', componentType: 'vant-tabs' as VueComponentType },
+      
+      // Tab组件
+      { pattern: /<van-tab\b/, componentName: 'Tab', componentType: 'vant-tab' as VueComponentType },
+      { pattern: /<Tab\b/, componentName: 'Tab', componentType: 'vant-tab' as VueComponentType },
+      
+      // Cell组件
+      { pattern: /<van-cell\b/, componentName: 'Cell', componentType: 'vant-cell' as VueComponentType },
+      { pattern: /<Cell\b/, componentName: 'Cell', componentType: 'vant-cell' as VueComponentType },
+      
+      // Dialog组件
+      { pattern: /<van-dialog\b/, componentName: 'Dialog', componentType: 'vant-dialog' as VueComponentType },
+      { pattern: /<Dialog\b/, componentName: 'Dialog', componentType: 'vant-dialog' as VueComponentType },
+      
+      // CellGroup组件
+      { pattern: /<van-cell-group\b/, componentName: 'CellGroup', componentType: 'vant-cell-group' as VueComponentType },
+      { pattern: /<CellGroup\b/, componentName: 'CellGroup', componentType: 'vant-cell-group' as VueComponentType },
+    ];
+    
+    let matchFound = false;
+    let componentName = '';
+    let componentType = '';
+    let tagName = '';
+    
+    for (const { pattern, componentName: name, componentType: type } of vantPatterns) {
+      const match = line.match(pattern);
+      if (match) {
+        componentName = name;
+        componentType = type;
+        tagName = match[0].match(/<(\w+)/)?.[1] || 'div';
+        matchFound = true;
+        break;
+      }
+    }
+    
+    if (matchFound) {
+      const startLine = i;
+      let endLine = i;
+      
+      // 查找组件标签的结束位置
+      const tagEndPattern = new RegExp(`</${tagName}>`, 'i');
+      
+      // 标记是否找到闭合标签
+      let foundClosing = false;
+      
+      // 从当前行开始查找标签的结束位置（支持多行标签）
+      for (let j = i; j <= templateRange.end.line; j++) {
+        const currentLine = doc.lineAt(j).text;
+        
+        // 检查是否包含自闭合标签结束符 />
+        if (currentLine.includes('/>')) {
+          endLine = j;
+          foundClosing = true;
+          break;
+        }
+        
+        // 检查是否包含正常的结束标签 </tagName>
+        if (tagEndPattern.test(currentLine)) {
+          endLine = j;
+          foundClosing = true;
+          break;
+        }
+        
+        // 检查是否包含开始标签的结束符 >（但不是 />）
+        // 这处理的是多行开始标签的情况，例如：
+        // <van-picker
+        //   prop1="..."
+        //   prop2="...">  <-- 这里是开始标签的结束
+        const tagCloseMatch = currentLine.match(/>\s*$/);
+        if (tagCloseMatch && j > i && !currentLine.includes('/>')) {
+          // 找到了开始标签的结束，现在需要找到配对的结束标签
+          let tagCount = 1;
+          for (let k = j + 1; k <= templateRange.end.line; k++) {
+            const searchLine = doc.lineAt(k).text;
+            
+            // 检查是否有同名的新开始标签（完整的单行标签）
+            const newStartPattern = new RegExp(`<${tagName}\\b[^>]*>`, 'i');
+            if (newStartPattern.test(searchLine) && !searchLine.includes('/>')) {
+              tagCount++;
+            }
+            
+            // 检查是否有结束标签
+            if (tagEndPattern.test(searchLine)) {
+              tagCount--;
+              if (tagCount === 0) {
+                endLine = k;
+                foundClosing = true;
+                break;
+              }
+            }
+          }
+          break;
+        }
+      }
+      
+      // 对于Vant组件，只有找到闭合标签才添加
+      if (foundClosing) {
+        vantComponentBlocks.push({
+          range: new vscode.Range(
+            new vscode.Position(startLine, 0),
+            new vscode.Position(endLine, doc.lineAt(endLine).text.length)
+          ),
+          componentName,
+          componentType: componentType as VueComponentType
+        });
+      }
+    }
+  }
+  
+  return vantComponentBlocks;
+}
+
+/**
+ * 检测Vant组件（单行）
  */
 function detectVantComponent(line: string): { componentName: string, componentType: VueComponentType } | null {
   // Vant组件检测模式
@@ -880,37 +1138,99 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
   
   // 处理template区域
   if (sfc.template) {
-    // 检测div块
-    const divBlocks = detectDivBlocks(doc, sfc.template);
-    divBlocks.forEach((divBlock, index) => {
+    // 检测Vant组件块（整个组件标签）
+    const vantComponentBlocks = detectVantComponentBlock(doc, sfc.template);
+    vantComponentBlocks.forEach((block, index) => {
       items.push({
-        range: divBlock.range,
-        type: 'vue-div-block',
-        lineContent: `<div> ${divBlock.componentInfo}`,
+        range: block.range,
+        type: block.componentType,
+        lineContent: `${block.componentName}组件`,
         section: 'template'
       });
+      // 标记Vant组件块的所有行为已处理
+      for (let line = block.range.start.line; line <= block.range.end.line; line++) {
+        processed.add(line);
+      }
     });
     
+    // 检测Vue指令块（包含指令的HTML标签）
+    const directiveBlocks = detectVueDirectiveBlock(doc, sfc.template);
+    directiveBlocks.forEach((block, index) => {
+      // 检查是否与Vant组件块重叠
+      let isOverlapped = false;
+      for (const vantBlock of vantComponentBlocks) {
+        if (block.range.start.line >= vantBlock.range.start.line && 
+            block.range.end.line <= vantBlock.range.end.line) {
+          isOverlapped = true;
+          break;
+        }
+      }
+      
+      if (!isOverlapped) {
+        items.push({
+          range: block.range,
+          type: 'vue-directive-block',
+          lineContent: `${block.directiveType}指令块`,
+          section: 'template'
+        });
+        // 标记指令块的所有行为已处理
+        for (let line = block.range.start.line; line <= block.range.end.line; line++) {
+          processed.add(line);
+        }
+      }
+    });
+    
+    // 检测div块（不在指令块和Vant组件块中的）
+    const divBlocks = detectDivBlocks(doc, sfc.template);
+    divBlocks.forEach((divBlock, index) => {
+      // 检查是否与指令块或Vant组件块重叠
+      let isOverlapped = false;
+      for (const block of [...directiveBlocks, ...vantComponentBlocks]) {
+        if (divBlock.range.start.line >= block.range.start.line && 
+            divBlock.range.end.line <= block.range.end.line) {
+          isOverlapped = true;
+          break;
+        }
+      }
+      
+      if (!isOverlapped) {
+        items.push({
+          range: divBlock.range,
+          type: 'vue-div-block',
+          lineContent: `<div> ${divBlock.componentInfo}`,
+          section: 'template'
+        });
+      }
+    });
+    //  在 sfc.template 循环之前，先提取所有块级装饰的行范围
+    const blockLines = new Set<number>();
+    [...vantComponentBlocks, ...directiveBlocks].forEach(block => {
+        for (let line = block.range.start.line; line <= block.range.end.line; line++) {
+            blockLines.add(line);
+        }
+    });
     for (let i = sfc.template.start.line; i <= sfc.template.end.line; i++) {
       if (processed.has(i)) continue;
       
       const line = doc.lineAt(i).text;
-      
-      // 检测Vant组件
-      const vantComponent = detectVantComponent(line);
-      if (vantComponent) {
-        const range = new vscode.Range(i, 0, i, line.length);
-        items.push({
-          range,
-          type: vantComponent.componentType,
-          lineContent: `${vantComponent.componentName}组件`,
-          section: 'template'
-        });
-        processed.add(i);
-        continue;
+      if (blockLines.has(i)) {
+          continue; // 再次确保被块级装饰覆盖的行被跳过
       }
+      // 检测Vant组件（单行，不在组件块中的，且不是自闭合标签）
+      // const vantComponent = detectVantComponent(line);
+      // if (vantComponent && !line.includes('/>') && !line.match(/<(\w+)[^>]*\s*\/\s*>$/)) {
+      //   const range = new vscode.Range(i, 0, i, line.length);
+      //   items.push({
+      //     range,
+      //     type: vantComponent.componentType,
+      //     lineContent: `${vantComponent.componentName}组件`,
+      //     section: 'template'
+      //   });
+      //   processed.add(i);
+      //   continue;
+      // }
       
-      // 检测Vue指令
+      // 检测Vue指令（单行指令，不在指令块中的）
       const directive = detectVueDirective(line);
       if (directive) {
         const range = new vscode.Range(i, 0, i, line.length);
@@ -924,7 +1244,7 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
         continue;
       }
       
-      // 检测Vue事件
+      // 检测Vue事件（单行事件，不在指令块中的）
       const event = detectVueEvent(line);
       if (event) {
         const range = new vscode.Range(i, 0, i, line.length);
@@ -961,6 +1281,7 @@ function getVueChineseLabel(type: VueComponentType): string {
     'vue-lifecycle-activated': '激活',
     'vue-lifecycle-deactivated': '失活',
     'vue-directive': '模板指令',
+    'vue-directive-block': '指令块',
     'vue-event': '事件处理',
     'vue-computed': '计算属性',
     'vue-watch': '监听器',

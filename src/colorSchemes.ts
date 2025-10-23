@@ -56,6 +56,7 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     'vue-lifecycle-activated': 'rgba(230, 230, 250, 0.3)',     // 薰衣草 → 激活
     'vue-lifecycle-deactivated': 'rgba(255, 228, 196, 0.3)',    // 米色 → 失活
     'vue-directive': 'rgba(255, 182, 193, 0.3)',        // 樱花粉 → 模板指令
+    'vue-directive-block': 'rgba(255, 182, 193, 0.4)',  // 樱花粉 → 指令块（更深的颜色）
     'vue-event': 'rgba(173, 216, 230, 0.3)',            // 浅蓝 → 事件处理
     'vue-computed': 'rgba(221, 160, 221, 0.3)',         // 淡紫 → 计算属性
     'vue-watch': 'rgba(255, 192, 203, 0.3)',            // 粉红 → 监听器
