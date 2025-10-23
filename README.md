@@ -1,6 +1,6 @@
 # CodeHue
 
-一个为 TypeScript/JavaScript/TSX/JSX 代码提供**结构化颜色装饰**和**AI 智能语义翻译**的 VSCode 扩展。
+一个为 TypeScript/JavaScript/TSX/JSX/Vue 代码提供**结构化颜色装饰**和**AI 智能语义翻译**的 VSCode 扩展。
 
 ## ✨ 主要功能
 
@@ -17,6 +17,15 @@
   - `useEffect` - 副作用处理
   - `useMemo` - 记忆化计算
   - `useCallback` - 回调记忆
+- **Vue 组件智能着色**：Vue 单文件组件专用马卡龙色系
+  - Composition API - 薄荷绿
+  - 生命周期钩子 - 淡青色系
+  - 模板指令 - 樱花粉
+  - 事件处理 - 浅蓝色
+  - 计算属性 - 淡紫色
+  - 监听器 - 粉红色
+  - 响应式数据 - 桃色
+  - Vant 组件库 - 专用配色
 - **智能识别过滤**：自动忽略 JSX 内联函数、数组方法回调、TypeScript 类型定义
 - **Region 区域着色**：`// #region` 标记的区域使用绿色
 
@@ -43,6 +52,15 @@
   - `useEffect(` → `// 副作用`
   - `useMemo(` → `// 记忆化`
   - `useCallback(` → `// 记忆回调`
+- **Vue 组件注释**：自动识别 Vue 组件并显示中文注释
+  - Composition API → `// 组合式API`
+  - 生命周期钩子 → `// 挂载完成`、`// 卸载完成` 等
+  - 模板指令 → `// 模板指令`
+  - 事件处理 → `// 事件处理`
+  - 计算属性 → `// 计算属性`
+  - 监听器 → `// 监听器`
+  - 响应式数据 → `// 响应式数据`
+  - Vant 组件 → `// 弹窗组件`、`// 输入框组件` 等
 - **虚拟注释**：不修改源文件，以悬浮形式显示
 - **智能过滤**：自动忽略 JSX 内联函数、数组方法回调和 TypeScript 类型定义
 
@@ -51,6 +69,13 @@
   - `useState`、`useEffect`、`useMemo`、`useCallback`
   - 支持 `React.useState` 等带前缀的调用
   - 支持跨行 Hook 调用识别
+- **Vue 组件识别**：智能识别 Vue 单文件组件
+  - Composition API：`ref`、`reactive`、`computed`、`watch` 等
+  - 生命周期钩子：`onMounted`、`onUnmounted`、`onUpdated` 等
+  - 模板指令：`v-if`、`v-for`、`v-model`、`v-show` 等
+  - 事件处理：`@click`、`@input`、`@change` 等
+  - Vant 组件库：`van-popup`、`van-field`、`van-list` 等
+  - 支持多行 API 声明和长函数识别
 - **智能过滤**：自动排除不需要着色的代码
   - JSX 内联函数（`onClick={() => {}}`）
   - 数组方法回调（`.map(item => {})`）
@@ -71,9 +96,11 @@
 - **手动刷新**：如果未显示，按 `Ctrl+Shift+P` 输入 "CodeHue: Refresh Decorations"
 - **清空缓存**：按 `Ctrl+Shift+P` 输入 "CodeHue: Clear Translation Cache" 清空翻译缓存
 - **Region 标记**：使用 `// #region 区域名称` 和 `// #endregion` 标记区域
+- **Vue 支持**：打开 `.vue` 文件即可看到 Vue 组件着色和注释
 
 ## 📖 使用示例
 
+### React 示例
 ```typescript
 // #region 用户管理
 function UserProfile() {
@@ -100,6 +127,44 @@ function UserProfile() {
   );
 }
 // #endregion
+```
+
+### Vue 示例
+```vue
+<template>
+  <div class="user-profile">
+    <van-field v-model="username" placeholder="用户名" />  <!-- 输入框组件 -->
+    <van-button @click="handleSubmit">提交</van-button>  <!-- 事件处理 -->
+    <van-popup v-model:show="showDialog">  <!-- 弹窗组件 -->
+      <div v-if="user">  <!-- 模板指令 -->
+        {{ user.name }}
+      </div>
+    </van-popup>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue'  // 组合式API
+
+const username = ref('')  // 响应式数据
+const showDialog = ref(false)  // 响应式数据
+
+const user = computed(() => {  // 计算属性
+  return { name: username.value }
+})
+
+watch(username, (newVal) => {  // 监听器
+  console.log('用户名变化:', newVal)
+})
+
+onMounted(() => {  // 挂载完成
+  console.log('组件已挂载')
+})
+
+const handleSubmit = () => {  // Vue函数
+  showDialog.value = true
+}
+</script>
 ```
 
 ## ⚙️ 配置选项
@@ -307,6 +372,7 @@ CodeHue 现在支持以下 React Hooks 的颜色自定义：
 - **实时更新**：代码变化时自动更新装饰，文档版本缓存避免重复处理
 - **主题切换响应**：切换主题时立即更新颜色，无需手动刷新
 - **多语言支持**：TypeScript, JavaScript, TSX, JSX, Vue, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Dart, Scala, Perl, R, Lua
+- **Vue 单文件组件支持**：完整的 Vue SFC 解析和着色
 - **智能识别**：精准识别四大核心 React Hooks，智能过滤不需要着色的代码
 - **优先级翻译系统**：三层优先级智能翻译，可见区域优先，提升用户体验
 - **持久化缓存**：翻译结果自动保存到本地，重启后无需重新翻译
@@ -369,6 +435,8 @@ CodeHue 集成了顺丰私有云 AI 模型，可智能翻译函数名为中文�
 - [x] ~~优先级翻译系统~~ ✅ 已实现三层优先级翻译
 - [x] ~~React Hooks 精准识别~~ ✅ 已实现四大核心 Hooks 着色
 - [x] ~~智能过滤系统~~ ✅ 已实现 JSX、数组方法等过滤
+- [x] ~~Vue 组件支持~~ ✅ 已实现 Vue SFC 完整着色和注释
+- [x] ~~Vant 组件库支持~~ ✅ 已实现 Vant 组件识别和着色
 - [ ] 集成 JSDoc 注释
 - [ ] 函数复杂度可视化
 - [ ] 自定义颜色配置
@@ -382,7 +450,7 @@ Apache License 2.0
 
 ---
 
-**版本**: 3.5.0  
+**版本**: 4.0.0  
 **兼容性**: VSCode ^1.85.0  
 **支持语言**: TypeScript, JavaScript, TSX, JSX, Vue, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Dart, Scala, Perl, R, Lua
 
@@ -398,9 +466,11 @@ Apache License 2.0
    - `useMemo` - 记忆化计算（紫色/蓝色）
    - `useCallback` - 回调记忆（青色/青色）
 4. **智能过滤**：JSX 内联函数、数组方法回调等会自动过滤，不会着色
-5. **性能优化**：对于超大文件（>10000行），插件会自动跳过处理
-6. **配色调整**：在设置中切换六大主题方案，每种方案都有亮色/暗色版本
-7. **AI 翻译**：可见区域的函数名会优先翻译，提升用户体验
+5. **Vue 组件着色**：Vue 单文件组件使用专用马卡龙色系，支持 Composition API、生命周期、指令等
+6. **Vant 组件支持**：自动识别 Vant 组件库组件，提供专用配色和注释
+7. **性能优化**：对于超大文件（>10000行），插件会自动跳过处理
+8. **配色调整**：在设置中切换六大主题方案，每种方案都有亮色/暗色版本
+9. **AI 翻译**：可见区域的函数名会优先翻译，提升用户体验
 
 ## 🐛 问题反馈
 

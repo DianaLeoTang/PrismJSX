@@ -20,6 +20,7 @@
     "onLanguage:javascript",
     "onLanguage:typescriptreact",
     "onLanguage:javascriptreact",
+    "onLanguage:vue",
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",
