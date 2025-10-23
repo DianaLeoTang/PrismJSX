@@ -47,7 +47,14 @@ export const COLOR_SCHEMES_LIGHT: Record<string, ColorSchemeMap> = {
     
     // === Vue 专用颜色 - 马卡龙色系 ===
     'vue-composition-api': 'rgba(144, 238, 144, 0.3)',  // 薄荷绿 → 组合式API
-    'vue-lifecycle': 'rgba(176, 224, 230, 0.3)',        // 淡青 → 生命周期
+    'vue-lifecycle-mounted': 'rgba(176, 224, 230, 0.3)',        // 淡青 → 挂载完成
+    'vue-lifecycle-unmounted': 'rgba(255, 182, 193, 0.3)',      // 樱花粉 → 卸载完成
+    'vue-lifecycle-updated': 'rgba(173, 216, 230, 0.3)',        // 浅蓝 → 更新完成
+    'vue-lifecycle-before-mount': 'rgba(221, 160, 221, 0.3)',   // 淡紫 → 挂载前
+    'vue-lifecycle-before-unmount': 'rgba(255, 192, 203, 0.3)', // 粉红 → 卸载前
+    'vue-lifecycle-before-update': 'rgba(255, 218, 185, 0.3)',  // 桃色 → 更新前
+    'vue-lifecycle-activated': 'rgba(230, 230, 250, 0.3)',     // 薰衣草 → 激活
+    'vue-lifecycle-deactivated': 'rgba(255, 228, 196, 0.3)',    // 米色 → 失活
     'vue-directive': 'rgba(255, 182, 193, 0.3)',        // 樱花粉 → 模板指令
     'vue-event': 'rgba(173, 216, 230, 0.3)',            // 浅蓝 → 事件处理
     'vue-computed': 'rgba(221, 160, 221, 0.3)',         // 淡紫 → 计算属性

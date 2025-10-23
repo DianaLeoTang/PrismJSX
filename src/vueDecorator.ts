@@ -35,7 +35,14 @@ interface VueDecoratedItem {
 /** Vue 组件类型 */
 type VueComponentType = 
   | 'vue-composition-api'  // Composition API
-  | 'vue-lifecycle'        // 生命周期钩子
+  | 'vue-lifecycle-mounted'     // onMounted
+  | 'vue-lifecycle-unmounted'   // onUnmounted
+  | 'vue-lifecycle-updated'     // onUpdated
+  | 'vue-lifecycle-before-mount'    // onBeforeMount
+  | 'vue-lifecycle-before-unmount'  // onBeforeUnmount
+  | 'vue-lifecycle-before-update'   // onBeforeUpdate
+  | 'vue-lifecycle-activated'       // onActivated
+  | 'vue-lifecycle-deactivated'     // onDeactivated
   | 'vue-directive'        // 模板指令
   | 'vue-event'           // 事件处理
   | 'vue-computed'        // 计算属性
@@ -435,8 +442,7 @@ function detectMultilineVueAPI(doc: vscode.TextDocument, scriptRange: vscode.Ran
       { pattern: /^\s*watch\s*\(/, apiType: 'vue-watch' },
       // watchEffect
       { pattern: /^\s*watchEffect\s*\(/, apiType: 'vue-watch' },
-      // 生命周期钩子
-      { pattern: /^\s*(onMounted|onUnmounted|onUpdated|onBeforeMount|onBeforeUnmount|onBeforeUpdate|onActivated|onDeactivated)\s*\(/, apiType: 'vue-lifecycle' }
+      // 生命周期钩子 - 需要特殊处理，因为每个钩子都有不同的类型
     ];
     
     let matchFound = false;
@@ -449,11 +455,33 @@ function detectMultilineVueAPI(doc: vscode.TextDocument, scriptRange: vscode.Ran
         if (match[1]) {
           name = match[1]; // 变量名或函数名
         } else {
-          name = match[0].trim().split('(')[0].trim(); // 对于watch/watchEffect/生命周期
+          name = match[0].trim().split('(')[0].trim(); // 对于watch/watchEffect
         }
         apiType = type;
         matchFound = true;
         break;
+      }
+    }
+    
+    // 特殊处理生命周期钩子
+    if (!matchFound) {
+      const lifecycleMatch = line.match(/^\s*(onMounted|onUnmounted|onUpdated|onBeforeMount|onBeforeUnmount|onBeforeUpdate|onActivated|onDeactivated)\s*\(/);
+      if (lifecycleMatch) {
+        const hookName = lifecycleMatch[1];
+        name = hookName;
+        // 根据钩子名称分配不同的类型
+        const lifecycleTypeMap: Record<string, string> = {
+          'onMounted': 'vue-lifecycle-mounted',
+          'onUnmounted': 'vue-lifecycle-unmounted',
+          'onUpdated': 'vue-lifecycle-updated',
+          'onBeforeMount': 'vue-lifecycle-before-mount',
+          'onBeforeUnmount': 'vue-lifecycle-before-unmount',
+          'onBeforeUpdate': 'vue-lifecycle-before-update',
+          'onActivated': 'vue-lifecycle-activated',
+          'onDeactivated': 'vue-lifecycle-deactivated'
+        };
+        apiType = lifecycleTypeMap[hookName] || 'vue-lifecycle-mounted';
+        matchFound = true;
       }
     }
     
@@ -703,10 +731,25 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
       // 检测单行生命周期钩子（不在多行检测中）
       const lifecycle = detectVueLifecycle(trimmed);
       if (lifecycle && /^\s*(onMounted|onUnmounted|onUpdated|onBeforeMount|onBeforeUnmount|onBeforeUpdate|onActivated|onDeactivated)\s*\([^)]*\)\s*;?\s*$/.test(trimmed)) {
+        // 根据钩子名称分配不同的类型
+        const lifecycleTypeMap: Record<string, VueComponentType> = {
+          'onMounted': 'vue-lifecycle-mounted',
+          'onUnmounted': 'vue-lifecycle-unmounted',
+          'onUpdated': 'vue-lifecycle-updated',
+          'onBeforeMount': 'vue-lifecycle-before-mount',
+          'onBeforeUnmount': 'vue-lifecycle-before-unmount',
+          'onBeforeUpdate': 'vue-lifecycle-before-update',
+          'onActivated': 'vue-lifecycle-activated',
+          'onDeactivated': 'vue-lifecycle-deactivated'
+        };
+        
+        const hookName = trimmed.match(/^\s*(onMounted|onUnmounted|onUpdated|onBeforeMount|onBeforeUnmount|onBeforeUpdate|onActivated|onDeactivated)\s*\(/)?.[1];
+        const lifecycleType = hookName ? lifecycleTypeMap[hookName] : 'vue-lifecycle-mounted';
+        
         const range = new vscode.Range(i, 0, i, line.length);
         items.push({
           range,
-          type: 'vue-lifecycle',
+          type: lifecycleType,
           lineContent: trimmed,
           section: 'script'
         });
@@ -829,7 +872,14 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
 function getVueChineseLabel(type: VueComponentType): string {
   const labels: Record<VueComponentType, string> = {
     'vue-composition-api': '组合式API',
-    'vue-lifecycle': '生命周期',
+    'vue-lifecycle-mounted': '挂载完成',
+    'vue-lifecycle-unmounted': '卸载完成',
+    'vue-lifecycle-updated': '更新完成',
+    'vue-lifecycle-before-mount': '挂载前',
+    'vue-lifecycle-before-unmount': '卸载前',
+    'vue-lifecycle-before-update': '更新前',
+    'vue-lifecycle-activated': '激活',
+    'vue-lifecycle-deactivated': '失活',
     'vue-directive': '模板指令',
     'vue-event': '事件处理',
     'vue-computed': '计算属性',
