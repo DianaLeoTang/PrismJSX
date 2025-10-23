@@ -688,7 +688,42 @@ function detectVantComponentBlock(doc: vscode.TextDocument, templateRange: vscod
     }
   }
   
-  return vantComponentBlocks;
+  // 优化嵌套组件检测：移除被外层组件完全包含的内层组件
+  return filterNestedComponents(vantComponentBlocks);
+}
+
+/**
+ * 过滤嵌套组件，只保留外层组件
+ * 当内层组件被外层组件完全包含时，移除内层组件的装饰
+ */
+function filterNestedComponents(components: Array<{range: vscode.Range, componentName: string, componentType: VueComponentType}>): Array<{range: vscode.Range, componentName: string, componentType: VueComponentType}> {
+  const filteredComponents: Array<{range: vscode.Range, componentName: string, componentType: VueComponentType}> = [];
+  
+  for (let i = 0; i < components.length; i++) {
+    const currentComponent = components[i];
+    let isNested = false;
+    
+    // 检查当前组件是否被其他组件完全包含
+    for (let j = 0; j < components.length; j++) {
+      if (i === j) continue;
+      
+      const otherComponent = components[j];
+      
+      // 检查当前组件是否被其他组件完全包含
+      if (currentComponent.range.start.isAfterOrEqual(otherComponent.range.start) && 
+          currentComponent.range.end.isBeforeOrEqual(otherComponent.range.end)) {
+        isNested = true;
+        break;
+      }
+    }
+    
+    // 只有非嵌套组件才保留
+    if (!isNested) {
+      filteredComponents.push(currentComponent);
+    }
+  }
+  
+  return filteredComponents;
 }
 
 /**
