@@ -417,31 +417,56 @@ function getFunctionColor(index: number): string {
 }
 
 /**
- * 检测多行ref/reactive声明
+ * 检测多行Vue API声明（ref/reactive/computed/watch/watchEffect/生命周期）
  */
-function detectMultilineReactive(doc: vscode.TextDocument, scriptRange: vscode.Range): Array<{range: vscode.Range, variableName: string, type: string}> {
-  const multilineReactive: Array<{range: vscode.Range, variableName: string, type: string}> = [];
+function detectMultilineVueAPI(doc: vscode.TextDocument, scriptRange: vscode.Range): Array<{range: vscode.Range, name: string, type: string, apiType: string}> {
+  const multilineVueAPI: Array<{range: vscode.Range, name: string, type: string, apiType: string}> = [];
   
   for (let i = scriptRange.start.line; i <= scriptRange.end.line; i++) {
     const line = doc.lineAt(i).text;
     
-    // 检测ref/reactive开始
-    const reactiveMatch = line.match(/^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(ref|reactive)\s*\(/);
+    // 检测各种Vue API开始
+    const patterns = [
+      // ref/reactive
+      { pattern: /^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(ref|reactive)\s*\(/, apiType: 'vue-ref' },
+      // computed
+      { pattern: /^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*computed\s*\(/, apiType: 'vue-computed' },
+      // watch
+      { pattern: /^\s*watch\s*\(/, apiType: 'vue-watch' },
+      // watchEffect
+      { pattern: /^\s*watchEffect\s*\(/, apiType: 'vue-watch' },
+      // 生命周期钩子
+      { pattern: /^\s*(onMounted|onUnmounted|onUpdated|onBeforeMount|onBeforeUnmount|onBeforeUpdate|onActivated|onDeactivated)\s*\(/, apiType: 'vue-lifecycle' }
+    ];
     
-    if (reactiveMatch) {
-      const variableName = reactiveMatch[1];
-      const type = reactiveMatch[2];
+    let matchFound = false;
+    let apiType = '';
+    let name = '';
+    
+    for (const { pattern, apiType: type } of patterns) {
+      const match = line.match(pattern);
+      if (match) {
+        if (match[1]) {
+          name = match[1]; // 变量名或函数名
+        } else {
+          name = match[0].trim().split('(')[0].trim(); // 对于watch/watchEffect/生命周期
+        }
+        apiType = type;
+        matchFound = true;
+        break;
+      }
+    }
+    
+    if (matchFound) {
       const startLine = i;
-      
-      // 查找结束位置
       let braceCount = 0;
       let foundStartBrace = false;
       let endLine = i;
       
-      // 查找第一个大括号
+      // 查找第一个大括号或圆括号
       for (let j = i; j <= scriptRange.end.line; j++) {
         const currentLine = doc.lineAt(j).text;
-        if (currentLine.includes('{')) {
+        if (currentLine.includes('{') || currentLine.includes('(')) {
           foundStartBrace = true;
           break;
         }
@@ -449,14 +474,14 @@ function detectMultilineReactive(doc: vscode.TextDocument, scriptRange: vscode.R
       }
       
       if (foundStartBrace) {
-        // 从找到的大括号开始计数
+        // 从找到的括号开始计数
         for (let j = i; j <= scriptRange.end.line; j++) {
           const currentLine = doc.lineAt(j).text;
           
           for (let k = 0; k < currentLine.length; k++) {
-            if (currentLine[k] === '{') {
+            if (currentLine[k] === '{' || currentLine[k] === '(') {
               braceCount++;
-            } else if (currentLine[k] === '}') {
+            } else if (currentLine[k] === '}' || currentLine[k] === ')') {
               braceCount--;
               if (braceCount === 0) {
                 endLine = j;
@@ -471,20 +496,21 @@ function detectMultilineReactive(doc: vscode.TextDocument, scriptRange: vscode.R
         // 检查是否是多行（超过1行）
         const lineCount = endLine - startLine + 1;
         if (lineCount > 1) {
-          multilineReactive.push({
+          multilineVueAPI.push({
             range: new vscode.Range(
               new vscode.Position(startLine, 0),
               new vscode.Position(endLine, doc.lineAt(endLine).text.length)
             ),
-            variableName,
-            type
+            name,
+            type: apiType,
+            apiType
           });
         }
       }
     }
   }
   
-  return multilineReactive;
+  return multilineVueAPI;
 }
 
 /**
@@ -624,17 +650,17 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
   
   // 处理script区域
   if (sfc.script) {
-    // 检测多行ref/reactive声明
-    const multilineReactive = detectMultilineReactive(doc, sfc.script);
-    multilineReactive.forEach((reactive, index) => {
+    // 检测多行Vue API声明
+    const multilineVueAPI = detectMultilineVueAPI(doc, sfc.script);
+    multilineVueAPI.forEach((api, index) => {
       items.push({
-        range: reactive.range,
-        type: 'vue-ref',
-        lineContent: `${reactive.variableName} (${reactive.type})`,
+        range: api.range,
+        type: api.apiType as VueComponentType,
+        lineContent: `${api.name} (${api.type})`,
         section: 'script'
       });
-      // 标记多行reactive的所有行为已处理
-      for (let line = reactive.range.start.line; line <= reactive.range.end.line; line++) {
+      // 标记多行API的所有行为已处理
+      for (let line = api.range.start.line; line <= api.range.end.line; line++) {
         processed.add(line);
       }
     });
@@ -674,9 +700,9 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
         continue;
       }
       
-      // 检测生命周期钩子
+      // 检测单行生命周期钩子（不在多行检测中）
       const lifecycle = detectVueLifecycle(trimmed);
-      if (lifecycle) {
+      if (lifecycle && /^\s*(onMounted|onUnmounted|onUpdated|onBeforeMount|onBeforeUnmount|onBeforeUpdate|onActivated|onDeactivated)\s*\([^)]*\)\s*;?\s*$/.test(trimmed)) {
         const range = new vscode.Range(i, 0, i, line.length);
         items.push({
           range,
@@ -701,8 +727,8 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
         continue;
       }
       
-      // 检测computed
-      if (/^\s*(?:const|let|var)\s+\w+\s*=\s*computed\s*\(/.test(trimmed)) {
+      // 检测单行computed（不在多行检测中）
+      if (/^\s*(?:const|let|var)\s+\w+\s*=\s*computed\s*\([^)]*\)\s*;?\s*$/.test(trimmed)) {
         const range = new vscode.Range(i, 0, i, line.length);
         items.push({
           range,
@@ -714,8 +740,8 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
         continue;
       }
       
-      // 检测watch
-      if (/^\s*watch\s*\(/.test(trimmed)) {
+      // 检测单行watch/watchEffect（不在多行检测中）
+      if (/^\s*(?:watch|watchEffect)\s*\([^)]*\)\s*;?\s*$/.test(trimmed)) {
         const range = new vscode.Range(i, 0, i, line.length);
         items.push({
           range,
