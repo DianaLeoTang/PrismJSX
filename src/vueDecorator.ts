@@ -49,7 +49,17 @@ type VueComponentType =
   | 'vue-watch'           // 监听器
   | 'vue-ref'             // ref/reactive
   | 'vue-function'        // Vue函数
-  | 'vue-div-block';      // 模板div块
+  | 'vue-div-block'       // 模板div块
+  | 'vant-popup'          // Vant Popup组件
+  | 'vant-toast'          // Vant Toast组件
+  | 'vant-list'           // Vant List组件
+  | 'vant-field'          // Vant Field组件
+  | 'vant-picker'         // Vant Picker组件
+  | 'vant-tabs'           // Vant Tabs组件
+  | 'vant-tab'            // Vant Tab组件
+  | 'vant-cell'           // Vant Cell组件
+  | 'vant-dialog'         // Vant Dialog组件
+  | 'vant-cell-group';    // Vant CellGroup组件
 
 /** Vue Composition API 关键字 */
 const VUE_COMPOSITION_API = [
@@ -421,6 +431,62 @@ function getRainbowColor(index: number): string {
  */
 function getFunctionColor(index: number): string {
   return FUNCTION_COLORS[index % FUNCTION_COLORS.length];
+}
+
+/**
+ * 检测Vant组件
+ */
+function detectVantComponent(line: string): { componentName: string, componentType: VueComponentType } | null {
+  // Vant组件检测模式
+  const vantPatterns = [
+    // Popup组件 - 各种弹窗
+    { pattern: /<van-popup\b/, componentName: 'Popup', componentType: 'vant-popup' as VueComponentType },
+    { pattern: /<Popup\b/, componentName: 'Popup', componentType: 'vant-popup' as VueComponentType },
+    
+    // Toast组件 - 轻提示
+    { pattern: /<van-toast\b/, componentName: 'Toast', componentType: 'vant-toast' as VueComponentType },
+    { pattern: /<Toast\b/, componentName: 'Toast', componentType: 'vant-toast' as VueComponentType },
+    
+    // List组件 - 列表
+    { pattern: /<van-list\b/, componentName: 'List', componentType: 'vant-list' as VueComponentType },
+    { pattern: /<List\b/, componentName: 'List', componentType: 'vant-list' as VueComponentType },
+    
+    // Field组件 - 输入框
+    { pattern: /<van-field\b/, componentName: 'Field', componentType: 'vant-field' as VueComponentType },
+    { pattern: /<Field\b/, componentName: 'Field', componentType: 'vant-field' as VueComponentType },
+    
+    // Picker组件 - 选择器
+    { pattern: /<van-picker\b/, componentName: 'Picker', componentType: 'vant-picker' as VueComponentType },
+    { pattern: /<Picker\b/, componentName: 'Picker', componentType: 'vant-picker' as VueComponentType },
+    
+    // Tabs组件 - 标签页容器
+    { pattern: /<van-tabs\b/, componentName: 'Tabs', componentType: 'vant-tabs' as VueComponentType },
+    { pattern: /<Tabs\b/, componentName: 'Tabs', componentType: 'vant-tabs' as VueComponentType },
+    
+    // Tab组件 - 标签页项
+    { pattern: /<van-tab\b/, componentName: 'Tab', componentType: 'vant-tab' as VueComponentType },
+    { pattern: /<Tab\b/, componentName: 'Tab', componentType: 'vant-tab' as VueComponentType },
+    
+    // Cell组件 - 单元格
+    { pattern: /<van-cell\b/, componentName: 'Cell', componentType: 'vant-cell' as VueComponentType },
+    { pattern: /<Cell\b/, componentName: 'Cell', componentType: 'vant-cell' as VueComponentType },
+    
+    // Dialog组件 - 对话框
+    { pattern: /<van-dialog\b/, componentName: 'Dialog', componentType: 'vant-dialog' as VueComponentType },
+    { pattern: /<Dialog\b/, componentName: 'Dialog', componentType: 'vant-dialog' as VueComponentType },
+    
+    // CellGroup组件 - 单元格组
+    { pattern: /<van-cell-group\b/, componentName: 'CellGroup', componentType: 'vant-cell-group' as VueComponentType },
+    { pattern: /<CellGroup\b/, componentName: 'CellGroup', componentType: 'vant-cell-group' as VueComponentType },
+  ];
+  
+  for (const { pattern, componentName, componentType } of vantPatterns) {
+    if (pattern.test(line)) {
+      return { componentName, componentType };
+    }
+  }
+  
+  return null;
 }
 
 /**
@@ -830,6 +896,20 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
       
       const line = doc.lineAt(i).text;
       
+      // 检测Vant组件
+      const vantComponent = detectVantComponent(line);
+      if (vantComponent) {
+        const range = new vscode.Range(i, 0, i, line.length);
+        items.push({
+          range,
+          type: vantComponent.componentType,
+          lineContent: `${vantComponent.componentName}组件`,
+          section: 'template'
+        });
+        processed.add(i);
+        continue;
+      }
+      
       // 检测Vue指令
       const directive = detectVueDirective(line);
       if (directive) {
@@ -887,6 +967,16 @@ function getVueChineseLabel(type: VueComponentType): string {
     'vue-ref': '响应式数据',
     'vue-function': 'Vue函数',
     'vue-div-block': '模板块',
+    'vant-popup': '弹窗组件',
+    'vant-toast': '轻提示组件',
+    'vant-list': '列表组件',
+    'vant-field': '输入框组件',
+    'vant-picker': '选择器组件',
+    'vant-tabs': '标签页组件',
+    'vant-tab': '标签项组件',
+    'vant-cell': '单元格组件',
+    'vant-dialog': '对话框组件',
+    'vant-cell-group': '单元格组组件',
   };
 
   return labels[type] || type;
