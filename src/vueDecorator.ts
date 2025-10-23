@@ -305,13 +305,17 @@ function detectDivBlocks(doc: vscode.TextDocument, templateRange: vscode.Range):
         
         // 确保范围有效
         if (start && start.startLine <= i) {
-          divBlocks.push({
-            range: new vscode.Range(
-              new vscode.Position(start.startLine, start.startChar),
-              new vscode.Position(i, endIndex)
-            ),
-            componentInfo: start.componentInfo
-          });
+          // 只处理多行div块，跳过单行div
+          const lineCount = i - start.startLine + 1;
+          if (lineCount > 1) {
+            divBlocks.push({
+              range: new vscode.Range(
+                new vscode.Position(start.startLine, start.startChar),
+                new vscode.Position(i, endIndex)
+              ),
+              componentInfo: start.componentInfo
+            });
+          }
         }
       }
     }
@@ -1279,19 +1283,19 @@ function findVueDecoratedItems(doc: vscode.TextDocument): VueDecoratedItem[] {
         continue;
       }
       
-      // 检测Vue事件（单行事件，不在指令块中的）
-      const event = detectVueEvent(line);
-      if (event) {
-        const range = new vscode.Range(i, 0, i, line.length);
-        items.push({
-          range,
-          type: 'vue-event',
-          lineContent: line.trim(),
-          section: 'template'
-        });
-        processed.add(i);
-        continue;
-      }
+      // 不再检测Vue事件，避免不必要的绿色标注
+      // const event = detectVueEvent(line);
+      // if (event) {
+      //   const range = new vscode.Range(i, 0, i, line.length);
+      //   items.push({
+      //     range,
+      //     type: 'vue-event',
+      //     lineContent: line.trim(),
+      //     section: 'template'
+      //   });
+      //   processed.add(i);
+      //   continue;
+      // }
     }
   }
   
