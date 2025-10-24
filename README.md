@@ -281,7 +281,7 @@ CodeHue 现在支持以下 React Hooks 的颜色自定义：
 ### 🤖 AI 翻译配置
 - `codehue.enableAITranslation`: 启用 AI 智能翻译（默认：true）
 - `codehue.aiApiKey`: AI 模型 API Key（请填入您自己的 API Key）
-- `codehue.aiModelBaseUrl`: AI 模型的基础 URL（请填入您自己的 API 地址）
+- `codehue.aiModelBaseUrl`: AI 模型的基础 URL（可填入域名，如 `https://api.deepseek.com`，也支持带版本的 `https://api.deepseek.com/v1` 或直接填写完整的 `.../chat/completions` 接口地址）
 - `codehue.aiModelName`: AI 模型名称（请根据您的 API 提供商填入正确的模型名称）
   - `aiplat/qwen2.5-72b-instruct`（推荐，翻译质量最高）
   - `aiplat/qwen2.5-vl-72b`（视觉语言模型）
@@ -452,8 +452,7 @@ Apache License 2.0
 
 **版本**: 4.0.0  
 **兼容性**: VSCode ^1.85.0  
-**支持语言**: TypeScript, JavaScript, TSX, JSX, Vue, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Dart, Scala, Perl, R, Lua
-
+**支持语言**: TypeScript, JavaScript, TSX, JSX, Vue
 ## 💡 使用技巧
 
 1. **🌈 主题切换**：按 `Cmd+K Cmd+T`（Mac）或 `Ctrl+K Ctrl+T`（Windows/Linux）切换主题，颜色会自动适配
@@ -471,7 +470,3 @@ Apache License 2.0
 7. **性能优化**：对于超大文件（>10000行），插件会自动跳过处理
 8. **配色调整**：在设置中切换六大主题方案，每种方案都有亮色/暗色版本
 9. **AI 翻译**：可见区域的函数名会优先翻译，提升用户体验
-
-## 🐛 问题反馈
-
-如果遇到问题或有建议，请在 [GitHub Issues](https://github.com/your-repo/codehue/issues) 中反馈。
