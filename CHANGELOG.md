@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.3.0](https://github.com/DianaLeoTang/PrismJSX/compare/v4.2.0...v4.3.0) (2025-10-24)
+
+
+### 🐛 Bug 修复
+
+* 解决vant标签识别只标注出来第一行的问题 ([2aaf7e1](https://github.com/DianaLeoTang/PrismJSX/commit/2aaf7e18f88ead48a902a2adc3a562474cd25231))
+* 解决vue生命周期函数,只识别了第一行的问题 ([625fd05](https://github.com/DianaLeoTang/PrismJSX/commit/625fd0593783c9bbe10a663bed9b4088f92e568d))
+
+
+### ✨ 新功能
+
+*  增加Vue示例文件 ([833bb62](https://github.com/DianaLeoTang/PrismJSX/commit/833bb62222ef42b4b0a1947711cf0babdd4f5463))
+*  增加对Vue模板函数，生命周期，部分vant组件的识别支持 ([087df46](https://github.com/DianaLeoTang/PrismJSX/commit/087df46fd63dd4e0858a79c60dd9e0b20112775c))
+*  增加对Vue模板函数，生命周期，部分vant组件的识别支持，增加对应的马卡龙颜色 ([79fc448](https://github.com/DianaLeoTang/PrismJSX/commit/79fc448a8c499fa4e680b2a65a2c11c0207e96a5))
+* AI翻译函数在Vue模板里生效了 ([9671213](https://github.com/DianaLeoTang/PrismJSX/commit/9671213fa9170a06f84b81443ac1f8d2c8c7af28))
+* 在插件系统里引入Vue模板支持文件 ([576f598](https://github.com/DianaLeoTang/PrismJSX/commit/576f598cccba08053fa6130c47dad5c555243d20))
+* 增加对Vant高频组件的识别和颜色标注 ([6a4a7c0](https://github.com/DianaLeoTang/PrismJSX/commit/6a4a7c0b97fa9c760332ad906f78a0415ee5cfba))
+* 增加对Vue不同生命周期钩子的颜色处理 ([a756a93](https://github.com/DianaLeoTang/PrismJSX/commit/a756a93b36f77ec57fd163d0fe1e0910cc8568b0))
+* 引入Ai翻译，但没生效，明天继续看，下班 ([e67dc16](https://github.com/DianaLeoTang/PrismJSX/commit/e67dc165c58474dee0f6ad24f3432c9e6ddc913f))
+* 当遇到嵌套组件时，颜色展示外层组件的颜色 ([d12bb45](https://github.com/DianaLeoTang/PrismJSX/commit/d12bb4501a3199cc8ea40eee1c717f8ed5713019))
+* 忽略对单行div的组件识别和标识 ([7d4f0c5](https://github.com/DianaLeoTang/PrismJSX/commit/7d4f0c5dc7526fa07ae24e9611f9b92574a406ef))
+* 支持更多AI模型的接入 ([2ca3713](https://github.com/DianaLeoTang/PrismJSX/commit/2ca3713deff70c61f6f4ac647c407f6310b06ef3))
+* 更新readme文件，同步识别Vue模板文件的功能 ([2494298](https://github.com/DianaLeoTang/PrismJSX/commit/2494298e8a29e8e570b04681c1a2fbf4e1811a7b))
+* 重构 Vue 模块架构并修复颜色方案，确保主题切换正常工作 ([119495e](https://github.com/DianaLeoTang/PrismJSX/commit/119495e37f7db8d3b544150e2f0814afbcc5fcfb))
+
 ## [4.2.0](https://github.com/DianaLeoTang/PrismJSX/compare/v4.1.0...v4.2.0) (2025-10-22)
 
 
