@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as http from 'http';
+import * as https from 'https';
 
 // ============ 私有云 AI API 集成 ============
 
@@ -134,7 +136,19 @@ let pauseUntil = 0;
  */
 async function translateBatch(functionNames: string[], retryCount: number = 0): Promise<Map<string, string>> {
   const config = vscode.workspace.getConfiguration('codehue');
-  const baseUrl = config.get<string>('aiModelBaseUrl') || 'http://llm-model-hub-apis.sf-express.com';
+  let baseUrl = (config.get<string>('aiModelBaseUrl') || '').trim();
+  if (!baseUrl) {
+    baseUrl = 'http://llm-model-hub-apis.sf-express.com';
+  }
+  const normalizedBase = baseUrl.replace(/\/+$/, '');
+  let url = normalizedBase;
+  if (/\/chat\/completions$/i.test(normalizedBase)) {
+    url = normalizedBase;
+  } else if (/\/v\d+$/i.test(normalizedBase)) {
+    url = `${normalizedBase}/chat/completions`;
+  } else {
+    url = `${normalizedBase}/v1/chat/completions`;
+  }
   const model = config.get<string>('aiModelName') || 'aiplat/qwen2.5-72b-instruct';
   const apiKey = getApiKey();
   
@@ -163,10 +177,37 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
   }
   lastRequestTime = Date.now();
 
-  const url = `${baseUrl}/v1/chat/completions`;
   const functionList = functionNames.map((name, idx) => `${idx + 1}. ${name}`).join('\n');
   
   try {
+    const axiosConfig: AxiosRequestConfig = {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 60000
+    };
+
+    const isProxyEnabled = Boolean(
+      process.env.HTTP_PROXY ||
+      process.env.HTTPS_PROXY ||
+      process.env.http_proxy ||
+      process.env.https_proxy
+    );
+
+    if (!isProxyEnabled) {
+      axiosConfig.httpAgent = new http.Agent({
+        keepAlive: false,
+        keepAliveMsecs: 30000,
+        maxSockets: 5
+      });
+      axiosConfig.httpsAgent = new https.Agent({
+        keepAlive: false,
+        keepAliveMsecs: 30000,
+        maxSockets: 5
+      });
+    }
+
     const response = await axios.post(
       url,
       {
@@ -185,23 +226,7 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
         max_tokens: 300,
         stream: false
       },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000,
-        httpAgent: new (require('http').Agent)({ 
-          keepAlive: true,
-          keepAliveMsecs: 30000,
-          maxSockets: 1
-        }),
-        httpsAgent: new (require('https').Agent)({ 
-          keepAlive: true,
-          keepAliveMsecs: 30000,
-          maxSockets: 1
-        })
-      }
+      axiosConfig
     );
 
     const content = response.data.choices[0]?.message?.content?.trim() || '';
@@ -237,7 +262,7 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
     consecutiveErrors++;
     
     if (error.response?.status === 429) {
-      const waitTime = 30000;
+      const waitTime = 60000;
       console.warn(`⚠ 触发速率限制（429），暂停翻译 ${waitTime / 1000} 秒`);
       
       translationPaused = true;
@@ -252,7 +277,7 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
     
     if (error.code === 'ECONNRESET' || error.message?.includes('socket hang up')) {
       if (retryCount < MAX_RETRIES) {
-        const waitTime = 5000 * Math.pow(2, retryCount);
+        const waitTime = 10000 * Math.pow(3, retryCount);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         return translateBatch(functionNames, retryCount + 1);
       }
