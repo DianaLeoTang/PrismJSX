@@ -132,29 +132,148 @@ let translationPaused = false;
 let pauseUntil = 0;
 
 /**
+ * AI 提供商配置接口
+ */
+interface AIProviderConfig {
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+  headers?: Record<string, string>;
+  requestBody?: Record<string, any>;
+}
+
+/**
+ * 获取 AI 提供商配置
+ */
+function getAIProviderConfig(): AIProviderConfig {
+  const config = vscode.workspace.getConfiguration('codehue');
+  
+  // 获取用户配置
+  let baseUrl = (config.get<string>('aiModelBaseUrl') || '').trim();
+  let model = (config.get<string>('aiModelName') || '').trim();
+  const apiKey = getApiKey();
+  
+  // 如果用户没有配置，使用内置默认配置
+  if (!baseUrl) {
+    baseUrl = 'http://llm-model-hub-apis.sf-express.com/v1/chat/completions';
+  }
+  
+  if (!model) {
+    model = 'aiplat/qwen2.5-72b-instruct';
+  }
+  
+  if (!apiKey) {
+    throw new Error('请配置 AI API Key');
+  }
+  
+  // 根据不同的提供商调整请求格式
+  const normalizedUrl = baseUrl.replace(/\/+$/, '');
+  
+  // 检测提供商类型并调整配置
+  let headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  
+  let requestBody: Record<string, any> = {
+    model,
+    messages: [
+      {
+        role: 'system',
+        content: '你是一个专业的代码翻译助手。请将英文函数名翻译成简洁的中文语义描述。要求：1) 保持简洁（2-6个字）2) 体现函数的核心功能 3) 使用专业术语'
+      },
+      {
+        role: 'user',
+        content: '' // 将在调用时填充
+      }
+    ],
+    temperature: 0.3,
+    max_tokens: 300,
+    stream: false
+  };
+  
+  // 根据URL特征判断提供商类型
+  if (normalizedUrl.includes('openai.com')) {
+    // OpenAI 格式
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  } else if (normalizedUrl.includes('anthropic.com')) {
+    // Claude 格式
+    headers['x-api-key'] = apiKey;
+    headers['anthropic-version'] = '2023-06-01';
+    requestBody = {
+      model,
+      max_tokens: 300,
+      messages: [
+        {
+          role: 'user',
+          content: '' // 将在调用时填充
+        }
+      ]
+    };
+  } else if (normalizedUrl.includes('dashscope.aliyuncs.com')) {
+    // 通义千问格式
+    headers['Authorization'] = `Bearer ${apiKey}`;
+    requestBody = {
+      model,
+      input: {
+        messages: [
+          {
+            role: 'system',
+            content: '你是一个专业的代码翻译助手。请将英文函数名翻译成简洁的中文语义描述。要求：1) 保持简洁（2-6个字）2) 体现函数的核心功能 3) 使用专业术语'
+          },
+          {
+            role: 'user',
+            content: '' // 将在调用时填充
+          }
+        ]
+      },
+      parameters: {
+        temperature: 0.3,
+        max_tokens: 300
+      }
+    };
+  } else if (normalizedUrl.includes('deepseek.com')) {
+    // DeepSeek 格式
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  } else if (normalizedUrl.includes('moonshot.cn')) {
+    // Kimi 格式
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  } else if (normalizedUrl.includes('generativelanguage.googleapis.com')) {
+    // Gemini 格式
+    headers['x-goog-api-key'] = apiKey;
+    requestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              text: '' // 将在调用时填充
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 300
+      }
+    };
+  } else {
+    // 默认格式（兼容大多数 OpenAI 兼容的 API）
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+  
+  return {
+    baseUrl: normalizedUrl,
+    model,
+    apiKey,
+    headers,
+    requestBody
+  };
+}
+
+/**
  * 批量翻译函数
  */
 async function translateBatch(functionNames: string[], retryCount: number = 0): Promise<Map<string, string>> {
-  const config = vscode.workspace.getConfiguration('codehue');
-  let baseUrl = (config.get<string>('aiModelBaseUrl') || '').trim();
-  if (!baseUrl) {
-    baseUrl = 'http://llm-model-hub-apis.sf-express.com';
-  }
-  const normalizedBase = baseUrl.replace(/\/+$/, '');
-  let url = normalizedBase;
-  if (/\/chat\/completions$/i.test(normalizedBase)) {
-    url = normalizedBase;
-  } else if (/\/v\d+$/i.test(normalizedBase)) {
-    url = `${normalizedBase}/chat/completions`;
-  } else {
-    url = `${normalizedBase}/v1/chat/completions`;
-  }
-  const model = config.get<string>('aiModelName') || 'aiplat/qwen2.5-72b-instruct';
-  const apiKey = getApiKey();
-  
-  if (!apiKey) {
-    throw new Error('未配置 API Key');
-  }
+  const aiConfig = getAIProviderConfig();
 
   // 检查是否暂停
   if (translationPaused) {
@@ -178,13 +297,11 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
   lastRequestTime = Date.now();
 
   const functionList = functionNames.map((name, idx) => `${idx + 1}. ${name}`).join('\n');
+  const userContent = `请将以下函数名翻译成中文，按序号返回，格式为"序号. 中文翻译"：\n\n${functionList}\n\n只返回翻译结果，每行一个，不要任何解释。`;
   
   try {
     const axiosConfig: AxiosRequestConfig = {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
+      headers: aiConfig.headers,
       timeout: 60000
     };
 
@@ -208,10 +325,56 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
       });
     }
 
-    const response = await axios.post(
-      url,
-      {
-        model: model,
+    // 根据不同的提供商构建请求体
+    let requestBody: any;
+    
+    if (aiConfig.baseUrl.includes('anthropic.com')) {
+      // Claude 格式
+      requestBody = {
+        ...aiConfig.requestBody,
+        messages: [
+          {
+            role: 'user',
+            content: userContent
+          }
+        ]
+      };
+    } else if (aiConfig.baseUrl.includes('dashscope.aliyuncs.com')) {
+      // 通义千问格式
+      requestBody = {
+        ...aiConfig.requestBody,
+        input: {
+          ...(aiConfig.requestBody?.input || {}),
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个专业的代码翻译助手。请将英文函数名翻译成简洁的中文语义描述。要求：1) 保持简洁（2-6个字）2) 体现函数的核心功能 3) 使用专业术语'
+            },
+            {
+              role: 'user',
+              content: userContent
+            }
+          ]
+        }
+      };
+    } else if (aiConfig.baseUrl.includes('generativelanguage.googleapis.com')) {
+      // Gemini 格式
+      requestBody = {
+        ...aiConfig.requestBody,
+        contents: [
+          {
+            parts: [
+              {
+                text: userContent
+              }
+            ]
+          }
+        ]
+      };
+    } else {
+      // 默认 OpenAI 兼容格式
+      requestBody = {
+        ...aiConfig.requestBody,
         messages: [
           {
             role: 'system',
@@ -219,17 +382,35 @@ async function translateBatch(functionNames: string[], retryCount: number = 0): 
           },
           {
             role: 'user',
-            content: `请将以下函数名翻译成中文，按序号返回，格式为"序号. 中文翻译"：\n\n${functionList}\n\n只返回翻译结果，每行一个，不要任何解释。`
+            content: userContent
           }
-        ],
-        temperature: 0.3,
-        max_tokens: 300,
-        stream: false
-      },
+        ]
+      };
+    }
+
+    const response = await axios.post(
+      aiConfig.baseUrl,
+      requestBody,
       axiosConfig
     );
 
-    const content = response.data.choices[0]?.message?.content?.trim() || '';
+    // 根据不同的提供商解析响应
+    let content = '';
+    
+    if (aiConfig.baseUrl.includes('anthropic.com')) {
+      // Claude 响应格式
+      content = response.data.content?.[0]?.text?.trim() || '';
+    } else if (aiConfig.baseUrl.includes('dashscope.aliyuncs.com')) {
+      // 通义千问响应格式
+      content = response.data.output?.text?.trim() || '';
+    } else if (aiConfig.baseUrl.includes('generativelanguage.googleapis.com')) {
+      // Gemini 响应格式
+      content = response.data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    } else {
+      // 默认 OpenAI 兼容格式
+      content = response.data.choices?.[0]?.message?.content?.trim() || '';
+    }
+    
     const lines = content.split('\n').filter((l: string) => l.trim());
     
     const results = new Map<string, string>();
