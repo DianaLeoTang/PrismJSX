@@ -90,10 +90,50 @@ function getColorScheme(): Record<string, string> {
 }
 
 /**
+ * 调整颜色透明度，避免完全不透明导致选中高亮被遮挡
+ */
+function adjustColorForSelection(color: string): string {
+  if (color.includes('rgba')) {
+    const rgbaMatch = color.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/i);
+    if (rgbaMatch) {
+      const r = rgbaMatch[1];
+      const g = rgbaMatch[2];
+      const b = rgbaMatch[3];
+      const a = parseFloat(rgbaMatch[4]);
+      // 如果是完全不透明（alpha >= 0.98），降低到 0.95 让选中高亮可见
+      const adjustedA = a >= 0.98 ? 0.95 : a;
+      return `rgba(${r}, ${g}, ${b}, ${adjustedA})`;
+    }
+  }
+  
+  if (color.includes('rgb')) {
+    const rgbMatch = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/i);
+    if (rgbMatch) {
+      const r = rgbMatch[1];
+      const g = rgbMatch[2];
+      const b = rgbMatch[3];
+      return `rgba(${r}, ${g}, ${b}, 0.95)`;
+    }
+  }
+  
+  if (color.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/i)) {
+    const hex = color.slice(1);
+    const r = parseInt(hex.length === 3 ? hex[0].repeat(2) : hex.slice(0, 2), 16);
+    const g = parseInt(hex.length === 3 ? hex[1].repeat(2) : hex.slice(2, 4), 16);
+    const b = parseInt(hex.length === 3 ? hex[2].repeat(2) : hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, 0.95)`;
+  }
+  
+  return color;
+}
+
+/**
  * 获取背景色装饰
  */
 function getBackgroundDecoration(color: string): vscode.TextEditorDecorationType {
-  const cacheKey = `${color}-bg`;
+  // 调整颜色避免完全不透明
+  const adjustedColor = adjustColorForSelection(color);
+  const cacheKey = `${adjustedColor}-bg`;
 
   if (stripeTypeCache.has(cacheKey)) {
     return stripeTypeCache.get(cacheKey)!;
@@ -101,9 +141,10 @@ function getBackgroundDecoration(color: string): vscode.TextEditorDecorationType
 
   const dt = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
-    backgroundColor: color,
-    overviewRulerColor: color,
+    backgroundColor: adjustedColor,
+    overviewRulerColor: adjustedColor,
     overviewRulerLane: vscode.OverviewRulerLane.Left,
+    rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
   });
 
   stripeTypeCache.set(cacheKey, dt);
@@ -341,11 +382,11 @@ function findHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
       continue;
     }
 
-    // ===== 检测 Region =====
+    // ===== 跳过 Region 检测（已在 regionDecorator.ts 中处理）=====
     if (/#region\b/.test(trimmed)) {
       let endLine = -1;
 
-      // 查找匹配的 #endregion
+      // 查找匹配的 #endregion，但不在 hooksDecorator 中装饰它
       for (let j = i + 1; j < doc.lineCount; j++) {
         if (/#endregion\b/.test(doc.lineAt(j).text.trim())) {
           endLine = j;
@@ -354,18 +395,7 @@ function findHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
       }
 
       if (endLine !== -1) {
-        const range = new vscode.Range(
-          new vscode.Position(i, 0),
-          new vscode.Position(endLine, doc.lineAt(endLine).text.length)
-        );
-
-        items.push({
-          range,
-          type: 'region',
-          lineContent: trimmed,
-        });
-
-        // 标记已处理的行
+        // 只标记已处理的行，不添加到 items
         for (let j = i; j <= endLine; j++) {
           processed.add(j);
         }

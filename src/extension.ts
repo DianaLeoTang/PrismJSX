@@ -30,6 +30,11 @@ function applyAll(editor: vscode.TextEditor, force = false) {
     return;
   }
   
+  // 先清除所有装饰，避免叠加导致文本选择问题
+  disposeRegionDecorations();
+  disposeFunctionDecorations();
+  disposeVueDecorations();
+  
   // 先渲染 region（也会计算并发布 suppress 范围）
   applyRegionDecorations(editor, force); // 🔥 传递 force 参数以强制重建装饰
   

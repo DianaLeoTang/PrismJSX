@@ -25,18 +25,28 @@ function isDarkTheme(): boolean {
 // 颜色格式化：支持多种颜色格式
 // 支持格式：#eef, #ffeeff, rgb(1,1,1), rgba(1,1,1,0.5)
 function formatColor(color: string): string {
-  // 如果已经有透明度（rgba），直接返回
+  // 如果已经有透明度（rgba），处理完全不透明的情况
   if (color.includes('rgba')) {
+    const rgbaMatch = color.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/i);
+    if (rgbaMatch) {
+      const r = rgbaMatch[1];
+      const g = rgbaMatch[2];
+      const b = rgbaMatch[3];
+      const a = parseFloat(rgbaMatch[4]);
+      // 如果是完全不透明（alpha = 1），降低到 0.95 让选中高亮可见，视觉上几乎一样
+      const adjustedA = a >= 0.98 ? 0.95 : a;
+      return `rgba(${r}, ${g}, ${b}, ${adjustedA})`;
+    }
     return color;
   }
   
-  // 如果是 rgb 格式，转换为 rgba 并添加默认透明度 1
+  // 如果是 rgb 格式，转换为 rgba 并添加透明度 0.95（不完全透明）
   const rgbMatch = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/i);
   if (rgbMatch) {
     const r = rgbMatch[1];
     const g = rgbMatch[2];
     const b = rgbMatch[3];
-    return `rgba(${r}, ${g}, ${b}, 1)`;
+    return `rgba(${r}, ${g}, ${b}, 0.95)`;
   }
   
   // 处理十六进制颜色
@@ -50,12 +60,12 @@ function formatColor(color: string): string {
   // 处理完整格式十六进制 #ffeeff 或 #00ccff
   const fullHexMatch = hexColor.match(/^#([0-9a-fA-F]{6})$/i);
   if (fullHexMatch) {
-    // 转换为 RGBA 格式，添加默认透明度 1
+    // 转换为 RGBA 格式，添加透明度 0.95（不完全透明）
     const hex = fullHexMatch[1];
     const r = parseInt(hex.slice(0, 2), 16);
     const g = parseInt(hex.slice(2, 4), 16);
     const b = parseInt(hex.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, 1)`;
+    return `rgba(${r}, ${g}, ${b}, 0.95)`;
   }
   
   // 其他格式直接返回
@@ -107,6 +117,7 @@ function ensureDecorationType(forceRecreate: boolean = false): vscode.TextEditor
       backgroundColor: regionColor,
       overviewRulerColor: regionColor,
       overviewRulerLane: vscode.OverviewRulerLane.Right,
+      rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
     });
     
     lastRegionColor = regionColor;
