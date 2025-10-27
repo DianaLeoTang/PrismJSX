@@ -4,6 +4,7 @@ import { COLOR_SCHEMES_LIGHT, COLOR_SCHEMES_DARK } from './colorSchemes';
 import { getExplicitSetting } from './configUtils';
 
 let regionDecorationType: vscode.TextEditorDecorationType | null = null;
+let lastRegionColor: string | null = null;
 let cachedRegions: vscode.Range[] = [];
 
 // 允许“行尾注释里的标记”，大小写不敏感
@@ -84,18 +85,19 @@ function ensureDecorationType(): vscode.TextEditorDecorationType {
   const regionColor = formatColor(rawColor);
   console.log('[CodeHue] 格式化后的颜色:', regionColor);
   
-  // 每次重新创建装饰类型以确保配置生效
-  if (regionDecorationType) {
-    regionDecorationType.dispose();
-    regionDecorationType = null;
+  // 仅在颜色发生变化时重新创建装饰类型
+  if (!regionDecorationType || lastRegionColor !== regionColor) {
+    if (regionDecorationType) {
+      regionDecorationType.dispose();
+    }
+    regionDecorationType = vscode.window.createTextEditorDecorationType({
+      isWholeLine: true,
+      backgroundColor: regionColor,  // 使用 regionColor 作为背景色
+      overviewRulerColor: regionColor,
+      overviewRulerLane: vscode.OverviewRulerLane.Right,
+    });
+    lastRegionColor = regionColor;
   }
-  
-  regionDecorationType = vscode.window.createTextEditorDecorationType({
-    isWholeLine: true,
-    backgroundColor: regionColor,  // 使用 regionColor 作为背景色
-    overviewRulerColor: regionColor,
-    overviewRulerLane: vscode.OverviewRulerLane.Right,
-  });
   return regionDecorationType;
 }
 
