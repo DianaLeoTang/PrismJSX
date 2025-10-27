@@ -72,38 +72,48 @@ function getColorScheme(): Record<string, string> {
 }
 
 /**
+ * 将颜色转换为十六进制格式
+ */
+function colorToHex(color: string): string {
+  // 如果是 rgba 或 rgb
+  const rgbMatch = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/i);
+  if (rgbMatch) {
+    const r = parseInt(rgbMatch[1]);
+    const g = parseInt(rgbMatch[2]);
+    const b = parseInt(rgbMatch[3]);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+  
+  // 如果是 #rgb 短格式
+  if (color.match(/^#([0-9a-fA-F]{3})$/i)) {
+    const short = color.slice(1);
+    return `#${short[0]}${short[0]}${short[1]}${short[1]}${short[2]}${short[2]}`;
+  }
+  
+  // 如果已经是 #rrggbb 格式
+  if (color.match(/^#([0-9a-fA-F]{6})$/i)) {
+    return color.toLowerCase();
+  }
+  
+  return color;
+}
+
+/**
  * 调整颜色透明度，避免完全不透明导致选中高亮被遮挡
+ * 支持所有颜色格式，转换为十六进制后应用最大透明度 0.9
  */
 function adjustColorForSelection(color: string): string {
-  if (color.includes('rgba')) {
-    const rgbaMatch = color.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/i);
-    if (rgbaMatch) {
-      const r = rgbaMatch[1];
-      const g = rgbaMatch[2];
-      const b = rgbaMatch[3];
-      const a = parseFloat(rgbaMatch[4]);
-      // 如果是完全不透明（alpha >= 0.98），降低到 0.95 让选中高亮可见
-      const adjustedA = a >= 0.98 ? 0.95 : a;
-      return `rgba(${r}, ${g}, ${b}, ${adjustedA})`;
-    }
-  }
+  // 先转换为十六进制
+  const hexColor = colorToHex(color);
   
-  if (color.includes('rgb')) {
-    const rgbMatch = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/i);
-    if (rgbMatch) {
-      const r = rgbMatch[1];
-      const g = rgbMatch[2];
-      const b = rgbMatch[3];
-      return `rgba(${r}, ${g}, ${b}, 0.95)`;
-    }
-  }
-  
-  if (color.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/i)) {
-    const hex = color.slice(1);
-    const r = parseInt(hex.length === 3 ? hex[0].repeat(2) : hex.slice(0, 2), 16);
-    const g = parseInt(hex.length === 3 ? hex[1].repeat(2) : hex.slice(2, 4), 16);
-    const b = parseInt(hex.length === 3 ? hex[2].repeat(2) : hex.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, 0.95)`;
+  // 转换为 rgba 并应用最大透明度 0.9
+  const hexMatch = hexColor.match(/^#([0-9a-fA-F]{6})$/i);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, 0.9)`;
   }
   
   return color;

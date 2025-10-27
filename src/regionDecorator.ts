@@ -77,13 +77,58 @@ let lastThemeKind: vscode.ColorThemeKind | null = null;
 // 确保装饰类型
 let lastConfigString: string = '';
 
+/**
+ * 将颜色转换为十六进制格式
+ */
+function colorToHex(color: string): string {
+  // 如果是 rgba 或 rgb
+  const rgbMatch = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/i);
+  if (rgbMatch) {
+    const r = parseInt(rgbMatch[1]);
+    const g = parseInt(rgbMatch[2]);
+    const b = parseInt(rgbMatch[3]);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+  
+  // 如果是 #rgb 短格式
+  if (color.match(/^#([0-9a-fA-F]{3})$/i)) {
+    const short = color.slice(1);
+    return `#${short[0]}${short[0]}${short[1]}${short[1]}${short[2]}${short[2]}`;
+  }
+  
+  // 如果已经是 #rrggbb 格式
+  if (color.match(/^#([0-9a-fA-F]{6})$/i)) {
+    return color.toLowerCase();
+  }
+  
+  return color;
+}
+
+/**
+ * 应用颜色透明度限制（最高0.9）
+ */
+function applyMaxOpacity(color: string, maxOpacity: number = 0.9): string {
+  const hexMatch = color.match(/^#([0-9a-fA-F]{6})$/i);
+  if (!hexMatch) return color;
+  
+  const hex = hexMatch[1];
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${maxOpacity})`;
+}
+
 function ensureDecorationType(forceRecreate: boolean = false): vscode.TextEditorDecorationType {
   const config = vscode.workspace.getConfiguration('codehue');
   const explicitRegionColor = config.get<string>('regionColor');
+  const regionDisplayMode = config.get<string>('regionDisplayMode', 'background'); // 'stripe' 或 'background'
+  const stripeWidth = config.get<string>('regionStripeWidth', '3px');
   
   // 👇 生成配置指纹，包含所有影响颜色的因素
   const currentConfigString = JSON.stringify({
     regionColor: explicitRegionColor,
+    regionDisplayMode,
+    stripeWidth,
     colorScheme: config.get<string>('colorScheme'),
     themeKind: vscode.window.activeColorTheme.kind
   });
@@ -99,28 +144,45 @@ function ensureDecorationType(forceRecreate: boolean = false): vscode.TextEditor
     rawColor = scheme['region'] || 'rgba(76, 175, 80, 0.12)';
   }
   
-  const regionColor = formatColor(rawColor);
-  
   console.log('[CodeHue] 读取 regionColor 配置:', rawColor);
-  console.log('[CodeHue] 格式化后的颜色:', regionColor);
+  console.log('[CodeHue] 显示模式:', regionDisplayMode);
   
   // 👇 关键改动：配置指纹变化或强制重建时，重新创建
   if (!regionDecorationType || lastConfigString !== currentConfigString || forceRecreate) {
-    console.log('[CodeHue] 重新创建装饰类型'); // 👈 添加日志确认是否重建
+    console.log('[CodeHue] 重新创建装饰类型');
     
     if (regionDecorationType) {
       regionDecorationType.dispose();
     }
     
-    regionDecorationType = vscode.window.createTextEditorDecorationType({
-      isWholeLine: true,
-      backgroundColor: regionColor,
-      overviewRulerColor: regionColor,
-      overviewRulerLane: vscode.OverviewRulerLane.Right,
-      rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-    });
+    if (regionDisplayMode === 'stripe') {
+      // 左侧条带模式 - 使用用户原始颜色
+      const finalColor = formatColor(rawColor);
+      regionDecorationType = vscode.window.createTextEditorDecorationType({
+        isWholeLine: true,
+        borderStyle: 'solid',
+        borderColor: finalColor,
+        borderWidth: `0 0 0 ${stripeWidth}`,
+        overviewRulerColor: finalColor,
+        overviewRulerLane: vscode.OverviewRulerLane.Right,
+        rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+      });
+    } else {
+      // 底色模式 - 转换为十六进制并应用最大透明度 0.9
+      const hexColor = colorToHex(rawColor);
+      const finalColor = applyMaxOpacity(hexColor, 0.9);
+      console.log('[CodeHue] 格式化后的颜色:', finalColor);
+      
+      regionDecorationType = vscode.window.createTextEditorDecorationType({
+        isWholeLine: true,
+        backgroundColor: finalColor,
+        overviewRulerColor: finalColor,
+        overviewRulerLane: vscode.OverviewRulerLane.Right,
+        rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+      });
+    }
     
-    lastRegionColor = regionColor;
+    lastRegionColor = currentConfigString;
     lastConfigString = currentConfigString;
   }
   
