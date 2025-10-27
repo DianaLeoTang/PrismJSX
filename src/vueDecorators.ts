@@ -99,21 +99,42 @@ function colorToHex(color: string): string {
 }
 
 /**
+ * 从原始颜色中提取透明度（如果有的话）
+ */
+function extractOpacity(originalColor: string): number | null {
+  const rgbaMatch = originalColor.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/i);
+  if (rgbaMatch) {
+    return parseFloat(rgbaMatch[4]);
+  }
+  return null;
+}
+
+/**
  * 调整颜色透明度，避免完全不透明导致选中高亮被遮挡
- * 支持所有颜色格式，转换为十六进制后应用最大透明度 0.9
+ * 如果用户配置了透明度，保留用户配置；否则使用默认 0.9
  */
 function adjustColorForSelection(color: string): string {
   // 先转换为十六进制
   const hexColor = colorToHex(color);
   
-  // 转换为 rgba 并应用最大透明度 0.9
+  // 转换为 rgba 并应用透明度
   const hexMatch = hexColor.match(/^#([0-9a-fA-F]{6})$/i);
   if (hexMatch) {
     const hex = hexMatch[1];
     const r = parseInt(hex.slice(0, 2), 16);
     const g = parseInt(hex.slice(2, 4), 16);
     const b = parseInt(hex.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, 0.9)`;
+    
+    // 如果用户配置了透明度，使用用户配置的；否则使用 0.9
+    const userOpacity = extractOpacity(color);
+    const finalOpacity = userOpacity !== null ? userOpacity : 0.9;
+    
+    // 如果用户配置的透明度 >= 0.9，给出警告
+    if (userOpacity !== null && userOpacity >= 0.9) {
+      console.warn(`[CodeHue] ⚠️ 警告：Vue 装饰颜色透明度过高 (${userOpacity.toFixed(2)})，可能导致文本选中高亮不明显。建议使用透明度 0.9 以下。`);
+    }
+    
+    return `rgba(${r}, ${g}, ${b}, ${finalOpacity})`;
   }
   
   return color;

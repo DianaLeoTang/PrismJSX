@@ -105,17 +105,33 @@ function colorToHex(color: string): string {
 }
 
 /**
- * 应用颜色透明度限制（最高0.9）
+ * 从原始颜色中提取透明度（如果有的话）
  */
-function applyMaxOpacity(color: string, maxOpacity: number = 0.9): string {
-  const hexMatch = color.match(/^#([0-9a-fA-F]{6})$/i);
-  if (!hexMatch) return color;
+function extractOpacity(originalColor: string): number | null {
+  const rgbaMatch = originalColor.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/i);
+  if (rgbaMatch) {
+    return parseFloat(rgbaMatch[4]);
+  }
+  return null;
+}
+
+/**
+ * 应用颜色，保留用户配置的透明度，或使用默认值
+ */
+function applyColorWithOpacity(hexColor: string, originalColor: string, defaultOpacity: number = 0.9): string {
+  const hexMatch = hexColor.match(/^#([0-9a-fA-F]{6})$/i);
+  if (!hexMatch) return colorToHex(hexColor);
   
   const hex = hexMatch[1];
   const r = parseInt(hex.slice(0, 2), 16);
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${maxOpacity})`;
+  
+  // 如果用户配置了透明度，使用用户配置的；否则使用默认值
+  const userOpacity = extractOpacity(originalColor);
+  const finalOpacity = userOpacity !== null ? userOpacity : defaultOpacity;
+  
+  return `rgba(${r}, ${g}, ${b}, ${finalOpacity})`;
 }
 
 function ensureDecorationType(forceRecreate: boolean = false): vscode.TextEditorDecorationType {
@@ -168,9 +184,16 @@ function ensureDecorationType(forceRecreate: boolean = false): vscode.TextEditor
         rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
       });
     } else {
-      // 底色模式 - 转换为十六进制并应用最大透明度 0.9
+      // 底色模式 - 转换为十六进制并应用透明度
       const hexColor = colorToHex(rawColor);
-      const finalColor = applyMaxOpacity(hexColor, 0.9);
+      const finalColor = applyColorWithOpacity(hexColor, rawColor, 0.9);
+      
+      // 检查用户配置的透明度是否过高
+      const userOpacity = extractOpacity(rawColor);
+      if (userOpacity !== null && userOpacity >= 0.9) {
+        console.warn('[CodeHue] ⚠️ 警告：区域背景色透明度过高 (' + userOpacity.toFixed(2) + ')，可能导致文本选中高亮不明显。建议使用透明度 0.9 以下。');
+      }
+      
       console.log('[CodeHue] 格式化后的颜色:', finalColor);
       
       regionDecorationType = vscode.window.createTextEditorDecorationType({
