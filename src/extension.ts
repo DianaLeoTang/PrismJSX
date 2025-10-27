@@ -31,7 +31,7 @@ function applyAll(editor: vscode.TextEditor, force = false) {
   }
   
   // 先渲染 region（也会计算并发布 suppress 范围）
-  applyRegionDecorations(editor);
+  applyRegionDecorations(editor, force); // 🔥 传递 force 参数以强制重建装饰
   
   // 根据文件类型应用不同的装饰
   if (editor.document.languageId === 'vue') {
@@ -172,6 +172,21 @@ export function activate(context: vscode.ExtensionContext) {
       disposeAll();
     }
   });
+
+  // 配置变更时强制刷新可见代码编辑器，确保最新设置生效
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('codehue')) {
+      
+        disposeRegionDecorations();
+          vscode.window.visibleTextEditors.forEach(editor => {
+            if (isCodeFile(editor.document)) {
+              applyAll(editor, true);
+            }
+          });
+      }
+    })
+  );
 }
 
 // 🔥 新增：判断是否是代码文件

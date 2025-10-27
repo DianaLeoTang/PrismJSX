@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { onExclusionRanges } from './exclusionBus';
 import { COLOR_SCHEMES_LIGHT, COLOR_SCHEMES_DARK } from './colorSchemes';
+import { getExplicitSetting } from './configUtils';
 
 let suppressRanges: vscode.Range[] = [];
 onExclusionRanges((rs) => { suppressRanges = rs; });
@@ -78,6 +79,11 @@ function getColorScheme(): Record<string, string> {
     if (hookConfig.tag && hookConfig.color && hookConfig.color.trim() !== '') {
       mergedScheme[hookConfig.tag.toLowerCase()] = hookConfig.color;
     }
+  }
+
+  const regionColorOverride = getExplicitSetting<string>(config, 'regionColor');
+  if (regionColorOverride && regionColorOverride.trim() !== '') {
+    mergedScheme['region'] = regionColorOverride;
   }
   
   return mergedScheme;
