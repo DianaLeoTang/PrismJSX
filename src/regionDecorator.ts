@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { publishExclusionRanges, getLastExclusionRanges } from './exclusionBus';
+import { COLOR_SCHEMES_LIGHT, COLOR_SCHEMES_DARK } from './colorSchemes';
+import { getExplicitSetting } from './configUtils';
 
 let regionDecorationType: vscode.TextEditorDecorationType | null = null;
 let cachedRegions: vscode.Range[] = [];
@@ -14,14 +16,75 @@ const REGION_CLOSE_RE = /\/\/\s*#endregion\b(?:\s+(.+?))?\s*$/i;
 const _regionEmitter = new vscode.EventEmitter<void>();
 export const onRegionsChanged = _regionEmitter.event;
 
+function isDarkTheme(): boolean {
+  const themeKind = vscode.window.activeColorTheme.kind;
+  return themeKind === vscode.ColorThemeKind.Dark || themeKind === vscode.ColorThemeKind.HighContrast;
+}
+
+// 颜色格式化：支持多种颜色格式
+// 支持格式：#eef, #ffeeff, rgb(1,1,1), rgba(1,1,1,0.5)
+function formatColor(color: string): string {
+  // 如果已经有透明度（rgba），直接返回
+  if (color.includes('rgba')) {
+    return color;
+  }
+  
+  // 如果是 rgb 格式，转换为 rgba 并添加默认透明度 1
+  const rgbMatch = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/i);
+  if (rgbMatch) {
+    const r = rgbMatch[1];
+    const g = rgbMatch[2];
+    const b = rgbMatch[3];
+    return `rgba(${r}, ${g}, ${b}, 1)`;
+  }
+  
+  // 处理十六进制颜色
+  let hexColor = color;
+  // 处理短格式 #eef 转换为 #eeeeff
+  if (color.match(/^#([0-9a-fA-F]{3})$/i)) {
+    const short = color.slice(1);
+    hexColor = `#${short[0]}${short[0]}${short[1]}${short[1]}${short[2]}${short[2]}`;
+  }
+  
+  // 处理完整格式十六进制 #ffeeff 或 #00ccff
+  const fullHexMatch = hexColor.match(/^#([0-9a-fA-F]{6})$/i);
+  if (fullHexMatch) {
+    // 转换为 RGBA 格式，添加默认透明度 1
+    const hex = fullHexMatch[1];
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, 1)`;
+  }
+  
+  // 其他格式直接返回
+  return color;
+}
+
 // 仅左侧细条，不涂底色
 // 确保装饰类型
 function ensureDecorationType(): vscode.TextEditorDecorationType {
   const config = vscode.workspace.getConfiguration('codehue');
-  const regionColor = config.get<string>('regionColor', 'rgba(76, 175, 80, 0.12)');
+  const explicitRegionColor = getExplicitSetting<string>(config, 'regionColor');
+  let rawColor = explicitRegionColor && explicitRegionColor.trim() !== ''
+    ? explicitRegionColor
+    : undefined;
+
+  if (!rawColor) {
+    const schemeName = config.get<string>('colorScheme', 'vibrant');
+    const schemes = isDarkTheme() ? COLOR_SCHEMES_DARK : COLOR_SCHEMES_LIGHT;
+    const scheme = schemes[schemeName] || schemes.vibrant;
+    rawColor = scheme['region'] || 'rgba(76, 175, 80, 0.12)';
+  }
   
+  // 调试：打印配置值
+  console.log('[CodeHue] 读取 regionColor 配置:', rawColor);
   
-  // 如果配置改变，需要重新创建装饰类型
+  // 格式化颜色（处理短格式十六进制）
+  const regionColor = formatColor(rawColor);
+  console.log('[CodeHue] 格式化后的颜色:', regionColor);
+  
+  // 每次重新创建装饰类型以确保配置生效
   if (regionDecorationType) {
     regionDecorationType.dispose();
     regionDecorationType = null;
