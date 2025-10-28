@@ -12,86 +12,94 @@
   - `sunset`（日落）- 暖色调，温暖活力
   - `forest`（森林）- 绿色系，沉稳专注
   - `neon`（霓虹）- 荧光色，炫酷科技感
-- **全屏背景着色**：函数区域使用全屏背景色，增强视觉区分度
+- **双显示模式**：支持背景色高亮和左侧彩虹条两种显示模式
+  - 背景色模式：整行背景色高亮，视觉冲击力强
+  - 左侧条带模式：在代码行左侧显示彩色条带，简洁美观
 - **自动主题适配**：智能检测 VSCode 主题类型（亮色/暗色），动态调整配色
-- **React Hooks 精准着色**：四大核心 Hooks 使用不同颜色区分
-  - `useState` - 状态管理（最常用）
-  - `useEffect` - 副作用处理
-  - `useMemo` - 记忆化计算
-  - `useCallback` - 回调记忆
+- **React Hooks 精准着色**：支持 15+ React Hooks 的精准识别和着色
+  - 核心 Hooks：`useState`、`useEffect`、`useMemo`、`useCallback`
+  - 扩展 Hooks：`useRef`、`useContext`、`useReducer`、`useLayoutEffect` 等
+  - 并发特性 Hooks：`useDeferredValue`、`useTransition`、`useId` 等
 - **Vue 组件智能着色**：Vue 单文件组件专用马卡龙色系
   - Composition API - 薄荷绿
-  - 生命周期钩子 - 淡青色系
-  - 模板指令 - 樱花粉
-  - 事件处理 - 浅蓝色
+  - 生命周期钩子 - 淡青色系（onMounted、onUnmounted、onUpdated 等）
+  - 模板指令 - 樱花粉（v-if、v-for、v-model、v-show 等）
+  - 事件处理 - 浅蓝色（@click、@input、@change 等）
   - 计算属性 - 淡紫色
   - 监听器 - 粉红色
   - 响应式数据 - 桃色
-  - Vant 组件库 - 专用配色
+  - Vant 组件库 - 专用配色（van-popup、van-field、van-list 等）
 - **智能识别过滤**：自动忽略 JSX 内联函数、数组方法回调、TypeScript 类型定义、对象方法调用
-- **Region 区域着色**：`// #region` 标记的区域使用背景色高亮
+- **Region 区域着色**：`// #region` 标记的区域使用背景色高亮，支持嵌套和标签匹配
 
 ### 🤖 AI 智能翻译
 - **✨ 开箱即用**：插件已内置 API Key，无需任何配置，安装即可使用
-- **多模型支持**：支持主流 AI 模型
-  - OpenAI: gpt-4, gpt-3.5-turbo
-  - Claude: claude-3-sonnet-20240229
-  - 通义千问: qwen-turbo, qwen-plus
-  - DeepSeek: deepseek-chat, deepseek-coder
-  - Kimi: moonshot-v1-8k, moonshot-v1-32k
-  - Gemini: gemini-pro, gemini-pro-vision
-  - 私有云模型: aiplat/qwen2.5-72b-instruct
+- **多模型支持**：支持主流 AI 模型和私有云部署
 - **智能函数名翻译**：自动将英文函数名翻译成中文语义
   - `getUserInfo` → `获取用户信息`
   - `handleSubmit` → `处理提交`
   - `calculateTotal` → `计算总计`
-- **优先级翻译系统**：三层优先级智能翻译，滚动时优先翻译可见区域
+- **三层优先级翻译系统**：智能优先级调度，提升用户体验
   - 最高优先级：当前文件可见区域（立即翻译）
   - 中优先级：当前文件不可见区域（后台翻译）
   - 低优先级：其他打开的文件（最后翻译）
 - **可见区域监控**：实时监听编辑器滚动，优先翻译可见代码
-- **持久化缓存**：翻译结果自动保存到本地，重启后无需重新翻译
-- **智能缓存**：已翻译的函数名会被缓存，响应即时
-- **失败降级**：AI 翻译失败时自动显示原函数名，不影响使用
-- **多环境支持**：支持生产环境、内网环境、测试环境切换
-- **速率控制**：智能请求间隔控制，避免 API 限制
+- **持久化缓存**：翻译结果自动保存到本地磁盘，重启后无需重新翻译
+- **智能缓存机制**：已翻译的函数名会被缓存，响应即时
+- **失败降级策略**：AI 翻译失败时自动显示原函数名，不影响基本功能
+- **严格速率控制**：3秒请求间隔，智能重试机制，避免 API 限制和 429 错误
+- **批量翻译优化**：支持批量翻译，提高效率
 
 ### 📝 中文语义化注释
 - **Hook 类型识别**：自动识别 React Hooks 并显示中文注释
-  - `useState(` → `// 状态`
-  - `useEffect(` → `// 副作用`
-  - `useMemo(` → `// 记忆化`
+  - `useState(` → `// 状态管理`
+  - `useEffect(` → `// 副作用处理`
+  - `useMemo(` → `// 记忆化计算`
   - `useCallback(` → `// 记忆回调`
+  - `useRef(` → `// 引用管理`
+  - `useContext(` → `// 上下文消费`
+  - `useReducer(` → `// 状态管理`
+  - `useLayoutEffect(` → `// 布局副作用`
+  - `useImperativeHandle(` → `// 命令式句柄`
+  - `useDebugValue(` → `// 调试值`
+  - `useDeferredValue(` → `// 延迟值`
+  - `useTransition(` → `// 过渡状态`
+  - `useId(` → `// 唯一标识`
+  - `useSyncExternalStore(` → `// 外部同步`
+  - `useInsertionEffect(` → `// 插入副作用`
 - **Vue 组件注释**：自动识别 Vue 组件并显示中文注释
   - Composition API → `// 组合式API`
-  - 生命周期钩子 → `// 挂载完成`、`// 卸载完成` 等
+  - 生命周期钩子 → `// 挂载完成`、`// 卸载完成`、`// 更新完成` 等
   - 模板指令 → `// 模板指令`
   - 事件处理 → `// 事件处理`
   - 计算属性 → `// 计算属性`
   - 监听器 → `// 监听器`
   - 响应式数据 → `// 响应式数据`
-  - Vant 组件 → `// 弹窗组件`、`// 输入框组件` 等
-- **虚拟注释**：不修改源文件，以悬浮形式显示
+  - Vant 组件 → `// 弹窗组件`、`// 输入框组件`、`// 列表组件` 等
+- **行尾注释显示**：不修改源文件，在代码行尾以悬浮形式显示中文注释
 - **智能过滤**：自动忽略 JSX 内联函数、数组方法回调和 TypeScript 类型定义
 
 ### 🎯 智能识别
-- **React Hooks 识别**：精准识别四大核心 Hooks
-  - `useState`、`useEffect`、`useMemo`、`useCallback`
+- **React Hooks 识别**：精准识别 15+ React Hooks
+  - 核心 Hooks：`useState`、`useEffect`、`useMemo`、`useCallback`
+  - 扩展 Hooks：`useRef`、`useContext`、`useReducer`、`useLayoutEffect`
+  - 高级 Hooks：`useImperativeHandle`、`useDebugValue`
+  - 并发特性 Hooks：`useDeferredValue`、`useTransition`、`useId`、`useSyncExternalStore`、`useInsertionEffect`
   - 支持 `React.useState` 等带前缀的调用
-  - 支持跨行 Hook 调用识别
+  - 支持跨行 Hook 调用识别和复杂语法解析
 - **Vue 组件识别**：智能识别 Vue 单文件组件
   - Composition API：`ref`、`reactive`、`computed`、`watch` 等
-  - 生命周期钩子：`onMounted`、`onUnmounted`、`onUpdated` 等
-  - 模板指令：`v-if`、`v-for`、`v-model`、`v-show` 等
-  - 事件处理：`@click`、`@input`、`@change` 等
-  - Vant 组件库：`van-popup`、`van-field`、`van-list` 等
+  - 生命周期钩子：`onMounted`、`onUnmounted`、`onUpdated`、`onBeforeMount`、`onBeforeUnmount`、`onBeforeUpdate`、`onActivated`、`onDeactivated` 等
+  - 模板指令：`v-if`、`v-for`、`v-model`、`v-show`、`v-bind`、`v-on` 等
+  - 事件处理：`@click`、`@input`、`@change`、`@submit` 等
+  - Vant 组件库：`van-popup`、`van-field`、`van-list`、`van-button`、`van-tabs`、`van-cell`、`van-dialog`、`van-toast`、`van-picker` 等
   - 支持多行 API 声明和长函数识别
 - **智能过滤**：自动排除不需要着色的代码
   - JSX 内联函数（`onClick={() => {}}`）
   - 数组方法回调（`.map(item => {})`）
   - TypeScript 类型定义
   - 对象方法调用
-- **性能优化**：智能缓存，大文件也能流畅运行
+- **性能优化**：智能缓存机制，支持大文件（10000+ 行），防抖优化（150ms）
 - **边界检测**：精确的函数边界识别，避免重复着色
 
 ## 🚀 快速开始
@@ -190,11 +198,21 @@ const handleSubmit = () => {  // Vue函数
   - `forest`（森林）- 绿色系，沉稳专注
   - `neon`（霓虹）- 荧光色，炫酷科技感
 
+### 🎯 显示模式配置
+- `codehue.hooksDisplayMode`: Hooks 区域显示模式
+  - `background`（底色模式）- 整行背景色高亮（默认）
+  - `stripe`（条带模式）- 左侧彩色条带
+- `codehue.hooksStripeWidth`: Hooks 左侧条带宽度（仅在 stripe 模式下生效，默认：3px）
+- `codehue.regionDisplayMode`: Region 区域显示模式
+  - `background`（底色模式）- 整行背景色高亮（默认）
+  - `stripe`（条带模式）- 左侧彩色条带
+- `codehue.regionStripeWidth`: Region 左侧条带宽度（仅在 stripe 模式下生效，默认：3px）
+
 ### 🎯 自定义颜色配置
 - `codehue.regionColor`: Region 区域的背景颜色（例如：rgba(76, 175, 80, 0.12)）
 - `codehue.customHookColors`: React Hooks 自定义颜色配置（JSON 数组格式）
 
-#### 自定义 Hooks 颜色示例：
+#### 自定义 Hooks 颜色示例
 ```json
 "codehue.customHookColors": [
   {
@@ -373,22 +391,24 @@ CodeHue 支持自定义以下 React Hooks 的颜色：
 
 - **零配置**：安装即用，无需额外设置
 - **🎨 智能主题适配**：自动检测 VSCode 主题类型（亮色/暗色），动态切换最佳配色方案
-- **高性能**：智能缓存，支持大文件（10000+ 行），防抖优化（150ms），避免频繁重绘
+- **高性能**：智能缓存机制，支持大文件（10000+ 行），防抖优化（150ms），避免频繁重绘
 - **实时更新**：代码变化时自动更新装饰，文档版本缓存避免重复处理
 - **主题切换响应**：切换主题时立即更新颜色，无需手动刷新
-- **多语言支持**：TypeScript, JavaScript, TSX, JSX, Vue, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Dart, Scala, Perl, R, Lua
+- **多语言支持**：TypeScript, JavaScript, TSX, JSX, Vue
 - **Vue 单文件组件完整支持**：完整的 Vue SFC 解析和着色
   - Composition API（ref, reactive, computed, watch）
   - 生命周期钩子（onMounted, onUnmounted, onUpdated 等）
   - 模板指令（v-if, v-for, v-model, v-show 等）
   - Vant 组件库高频组件识别
-- **智能识别**：精准识别四大核心 React Hooks，智能过滤不需要着色的代码
-- **优先级翻译系统**：三层优先级智能翻译，可见区域优先，提升用户体验
+- **智能识别**：精准识别 15+ React Hooks，智能过滤不需要着色的代码
+- **三层优先级翻译系统**：智能优先级调度，可见区域优先，提升用户体验
 - **持久化缓存**：翻译结果自动保存到本地磁盘，重启后无需重新翻译
-- **速率控制**：智能请求间隔控制（3秒间隔），避免 API 限制和 429 错误
+- **严格速率控制**：3秒请求间隔，智能重试机制，避免 API 限制和 429 错误
 - **失败降级**：AI 翻译失败时自动显示原函数名，不影响基本功能
 - **环境变量支持**：开发环境使用 .env 文件，生产环境使用构建脚本注入
 - **配置热加载**：配置变更时自动应用，无需手动刷新
+- **双显示模式**：支持背景色高亮和左侧彩虹条两种显示模式
+- **Region 嵌套支持**：支持嵌套 region 标记和标签匹配
 
 ## 🤖 AI 智能翻译详解
 
@@ -458,29 +478,36 @@ Apache License 2.0
 
 **版本**: 4.3.0  
 **兼容性**: VSCode ^1.85.0  
-**支持语言**: TypeScript, JavaScript, TSX, JSX, Vue, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Dart, Scala, Perl, R, Lua
+**支持语言**: TypeScript, JavaScript, TSX, JSX, Vue
+
 ## 💡 使用技巧
 
 1. **🌈 主题切换**：按 `Cmd+K Cmd+T`（Mac）或 `Ctrl+K Ctrl+T`（Windows/Linux）切换主题，颜色会自动适配
    - 亮色主题：深色调配色，对比度高
    - 暗色主题：明亮色调配色，清晰易读
-2. **Region 标记**：使用 `// #region` 标记代码块，获得统一的背景着色
-3. **React Hooks 识别**：四大核心 Hooks 会自动着色和注释
-   - `useState` - 状态管理（橙色/黄色）
-   - `useEffect` - 副作用处理（蓝色/红色）
-   - `useMemo` - 记忆化计算（紫色/蓝色）
-   - `useCallback` - 回调记忆（青色/青色）
-4. **智能过滤**：JSX 内联函数、数组方法回调、对象方法调用等会自动过滤，不会着色
-5. **Vue 组件着色**：Vue 单文件组件使用专用马卡龙色系，支持 Composition API、生命周期、指令等
+2. **🎨 显示模式切换**：在设置中切换 `codehue.hooksDisplayMode` 和 `codehue.regionDisplayMode`
+   - `background`：整行背景色高亮，视觉冲击力强
+   - `stripe`：左侧彩色条带，简洁美观
+3. **Region 标记**：使用 `// #region 标签名` 和 `// #endregion` 标记代码块，支持嵌套和标签匹配
+4. **React Hooks 识别**：15+ React Hooks 会自动着色和注释
+   - 核心 Hooks：`useState`、`useEffect`、`useMemo`、`useCallback`
+   - 扩展 Hooks：`useRef`、`useContext`、`useReducer`、`useLayoutEffect` 等
+   - 并发特性 Hooks：`useDeferredValue`、`useTransition`、`useId` 等
+5. **智能过滤**：JSX 内联函数、数组方法回调、对象方法调用等会自动过滤，不会着色
+6. **Vue 组件着色**：Vue 单文件组件使用专用马卡龙色系，支持 Composition API、生命周期、指令等
    - Composition API：ref, reactive, computed, watch
-   - 生命周期：onMounted, onUnmounted, onUpdated 等
-6. **Vant 组件支持**：自动识别 Vant 组件库组件，提供专用配色和注释
-7. **全屏背景展示**：代码区域使用全屏背景色，更直观醒目
+   - 生命周期：onMounted, onUnmounted, onUpdated, onBeforeMount 等
+   - 模板指令：v-if, v-for, v-model, v-show, v-bind, v-on 等
+7. **Vant 组件支持**：自动识别 Vant 组件库组件，提供专用配色和注释
+   - 高频组件：van-popup, van-field, van-list, van-button
+   - 中频组件：van-tabs, van-cell, van-dialog, van-toast, van-picker
 8. **自定义 Hooks 颜色**：在设置中配置 `codehue.customHookColors` 自定义任意 Hooks 颜色
 9. **性能优化**：对于超大文件（>10000行），插件会自动跳过处理
 10. **配色调整**：在设置中切换六大主题方案，每种方案都有亮色/暗色版本
 11. **AI 翻译优化**：可见区域的函数名会优先翻译，滚动时实时触发优先级翻译
 12. **配置热加载**：修改配置后自动应用，无需手动刷新
+13. **条带宽度调整**：在 stripe 模式下，可调整 `hooksStripeWidth` 和 `regionStripeWidth` 控制条带宽度
+14. **Region 嵌套**：支持嵌套 region 标记，外层 region 会覆盖内层，避免重复着色
 
 ## 🐛 问题反馈
 
