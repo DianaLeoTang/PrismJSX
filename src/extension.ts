@@ -13,9 +13,23 @@ const MAX_FILE_LINES = 10000;
 // 上次处理的文档版本，用于避免重复处理
 let lastProcessedVersion = new Map<string, number>();
 
+// 判断是否是代码文件
+function isCodeFile(doc: vscode.TextDocument): boolean {
+  const codeLanguages = [
+    'javascript', 'typescript', 'javascriptreact', 'typescriptreact',
+    'vue'
+  ];
+  return codeLanguages.includes(doc.languageId);
+}
+
 // 应用所有装饰（force=true 时无视文档版本缓存，强制刷新）
 function applyAll(editor: vscode.TextEditor, force = false) {
   if (!editor || editor.document.isClosed) return;
+  
+  // 只处理代码文件
+  if (!isCodeFile(editor.document)) {
+    return;
+  }
   
   const docUri = editor.document.uri.toString();
   const docVersion = editor.document.version;
@@ -94,14 +108,14 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // 首次启动对激活编辑器应用
-  if (vscode.window.activeTextEditor) {
+  if (vscode.window.activeTextEditor && isCodeFile(vscode.window.activeTextEditor.document)) {
     applyAll(vscode.window.activeTextEditor);
   }
 
   // 编辑器切换
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((ed) => {
-      if (ed) {
+      if (ed && isCodeFile(ed.document)) {
         applyAll(ed);
       }
     })
@@ -192,16 +206,6 @@ export function activate(context: vscode.ExtensionContext) {
       }
     })
   );
-}
-
-// 🔥 新增：判断是否是代码文件
-function isCodeFile(doc: vscode.TextDocument): boolean {
-  const codeLanguages = [
-    'javascript', 'typescript', 'javascriptreact', 'typescriptreact',
-    'vue', 'python', 'java', 'cpp', 'c', 'csharp', 'go', 'rust', 'php',
-    'ruby', 'swift', 'kotlin', 'dart', 'scala', 'perl', 'r', 'lua'
-  ];
-  return codeLanguages.includes(doc.languageId);
 }
 
 // 清理所有资源
