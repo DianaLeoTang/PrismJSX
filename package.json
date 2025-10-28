@@ -64,6 +64,42 @@
           "default": "rgba(76, 175, 80, 0.12)",
           "description": "Region 区域的背景颜色（例如：#A7FFEB）"
         },
+        "codehue.regionDisplayMode": {
+          "type": "string",
+          "default": "background",
+          "description": "Region 区域显示模式",
+          "enum": [
+            "stripe",
+            "background"
+          ],
+          "enumDescriptions": [
+            "左侧彩虹条模式 - 在代码行左侧显示彩色条带",
+            "底色展示模式 - 整行背景色高亮"
+          ]
+        },
+        "codehue.regionStripeWidth": {
+          "type": "string",
+          "default": "3px",
+          "description": "Region 区域左侧条带宽度（仅在 stripe 模式下生效）"
+        },
+        "codehue.hooksDisplayMode": {
+          "type": "string",
+          "default": "background",
+          "description": "Hooks 区域显示模式",
+          "enum": [
+            "stripe",
+            "background"
+          ],
+          "enumDescriptions": [
+            "左侧彩虹条模式 - 在代码行左侧显示彩色条带",
+            "底色展示模式 - 整行背景色高亮"
+          ]
+        },
+        "codehue.hooksStripeWidth": {
+          "type": "string",
+          "default": "3px",
+          "description": "Hooks 区域左侧条带宽度（仅在 stripe 模式下生效）"
+        },
         "codehue.enableSemanticComments": {
           "type": "boolean",
           "default": true,
