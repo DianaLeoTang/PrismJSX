@@ -6,8 +6,8 @@ import { getExplicitSetting } from './configUtils';
 let suppressRanges: vscode.Range[] = [];
 onExclusionRanges((rs) => { suppressRanges = rs; });
 
-/** 颜色条缓存：不同颜色 → 独立 DecorationType */
-const stripeTypeCache = new Map<string, vscode.TextEditorDecorationType>();
+/** 装饰器缓存：不同颜色和模式 → 独立 DecorationType */
+const decorationCache = new Map<string, vscode.TextEditorDecorationType>();
 
 /** 行尾中文语义化注释 */
 const annotationType = vscode.window.createTextEditorDecorationType({
@@ -77,7 +77,8 @@ function getColorScheme(): Record<string, string> {
   // 应用自定义颜色（如果设置了的话）
   for (const hookConfig of customHookColors) {
     if (hookConfig.tag && hookConfig.color && hookConfig.color.trim() !== '') {
-      mergedScheme[hookConfig.tag.toLowerCase()] = hookConfig.color;
+      const key = hookConfig.tag.toLowerCase();
+      mergedScheme[key] = hookConfig.color;
     }
   }
 
@@ -128,14 +129,38 @@ function extractOpacity(originalColor: string): number | null {
 }
 
 /**
- * 调整颜色透明度，避免完全不透明导致选中高亮被遮挡
- * 如果用户配置了透明度，保留用户配置；否则使用默认 0.9
+ * 格式化颜色（用于左侧条带模式）
  */
-function adjustColorForSelection(color: string): string {
-  // 先转换为十六进制
-  const hexColor = colorToHex(color);
+function formatColor(color: string): string {
+  // 如果是 rgba 或 rgb
+  const rgbMatch = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)$/i);
+  if (rgbMatch) {
+    const r = parseInt(rgbMatch[1]);
+    const g = parseInt(rgbMatch[2]);
+    const b = parseInt(rgbMatch[3]);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
   
-  // 转换为 rgba 并应用透明度
+  // 如果是 #rgb 短格式
+  if (color.match(/^#([0-9a-fA-F]{3})$/i)) {
+    const short = color.slice(1);
+    return `#${short[0]}${short[0]}${short[1]}${short[1]}${short[2]}${short[2]}`;
+  }
+  
+  // 如果已经是 #rrggbb 格式
+  if (color.match(/^#([0-9a-fA-F]{6})$/i)) {
+    return color.toLowerCase();
+  }
+  
+  return color;
+}
+
+/**
+ * 应用颜色透明度（用于底色模式）
+ * 如果用户配置了透明度，保留用户配置；否则使用默认 0.9
+ * 用户设置的透明度高于0.9时，强制使用0.9
+ */
+function applyColorWithOpacity(hexColor: string, originalColor: string, defaultOpacity: number = 0.9): string {
   const hexMatch = hexColor.match(/^#([0-9a-fA-F]{6})$/i);
   if (hexMatch) {
     const hex = hexMatch[1];
@@ -143,42 +168,65 @@ function adjustColorForSelection(color: string): string {
     const g = parseInt(hex.slice(2, 4), 16);
     const b = parseInt(hex.slice(4, 6), 16);
     
-    // 如果用户配置了透明度，使用用户配置的；否则使用 0.9
-    const userOpacity = extractOpacity(color);
-    const finalOpacity = userOpacity !== null ? userOpacity : 0.9;
+    // 如果用户配置了透明度，使用用户配置的；否则使用默认值
+    const userOpacity = extractOpacity(originalColor);
+    const finalOpacity = userOpacity !== null ? Math.min(userOpacity, 0.9) : defaultOpacity;
     
     // 如果用户配置的透明度 >= 0.9，给出警告
     if (userOpacity !== null && userOpacity >= 0.9) {
-      console.warn(`[CodeHue] ⚠️ 警告：钩子/区域颜色透明度过高 (${userOpacity.toFixed(2)})，可能导致文本选中高亮不明显。建议使用透明度 0.9 以下。`);
+      console.warn(`[CodeHue] ⚠️ 警告：钩子颜色透明度过高 (${userOpacity.toFixed(2)})，已自动调整为 0.9 以保持文本选中高亮可见。`);
     }
     
     return `rgba(${r}, ${g}, ${b}, ${finalOpacity})`;
   }
   
-  return color;
+  return originalColor;
 }
 
 /**
- * 获取背景色装饰
+ * 获取装饰器（支持两种显示模式）
  */
-function getBackgroundDecoration(color: string): vscode.TextEditorDecorationType {
-  // 调整颜色避免完全不透明
-  const adjustedColor = adjustColorForSelection(color);
-  const cacheKey = `${adjustedColor}-bg`;
-
-  if (stripeTypeCache.has(cacheKey)) {
-    return stripeTypeCache.get(cacheKey)!;
+function getHookDecoration(color: string, hookType: string): vscode.TextEditorDecorationType {
+  const config = vscode.workspace.getConfiguration('codehue');
+  const displayMode = config.get<string>('hooksDisplayMode', 'background');
+  const stripeWidth = config.get<string>('hooksStripeWidth', '3px');
+  
+  // 生成缓存键，包含颜色、模式和类型
+  const cacheKey = `${color}-${displayMode}-${stripeWidth}-${hookType}`;
+  
+  if (decorationCache.has(cacheKey)) {
+    return decorationCache.get(cacheKey)!;
   }
-
-  const dt = vscode.window.createTextEditorDecorationType({
-    isWholeLine: true,
-    backgroundColor: adjustedColor,
-    overviewRulerColor: adjustedColor,
-    overviewRulerLane: vscode.OverviewRulerLane.Left,
-    rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-  });
-
-  stripeTypeCache.set(cacheKey, dt);
+  
+  let dt: vscode.TextEditorDecorationType;
+  
+  if (displayMode === 'stripe') {
+    // 左侧条带模式 - 使用用户原始颜色
+    const finalColor = formatColor(color);
+    dt = vscode.window.createTextEditorDecorationType({
+      isWholeLine: true,
+      borderStyle: 'solid',
+      borderColor: finalColor,
+      borderWidth: `0 0 0 ${stripeWidth}`,
+      overviewRulerColor: finalColor,
+      overviewRulerLane: vscode.OverviewRulerLane.Left,
+      rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+    });
+  } else {
+    // 底色模式 - 转换为十六进制并应用透明度
+    const hexColor = colorToHex(color);
+    const finalColor = applyColorWithOpacity(hexColor, color, 0.9);
+    
+    dt = vscode.window.createTextEditorDecorationType({
+      isWholeLine: true,
+      backgroundColor: finalColor,
+      overviewRulerColor: finalColor,
+      overviewRulerLane: vscode.OverviewRulerLane.Left,
+      rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+    });
+  }
+  
+  decorationCache.set(cacheKey, dt);
   return dt;
 }
 
@@ -228,9 +276,7 @@ function detectHookCall(text: string): HookKeyword | undefined {
         `(?:React\\.)?` +                          // 可选 React.
         `(useEffect)` +                            // Hook 名称
         `\\s*(?:<[^>]*>)?` +                       // 可选泛型
-        `\\s*\\(` +                                // 开括号
-        `\\s*(?:async\\s+)?` +                     // 可选 async
-        `(?:(?:function|\\(|\\w+\\s*=>))`,         // 函数开始标志
+        `\\s*\\(`,                                 // 开括号
         'i'
       );
     } 
@@ -238,12 +284,12 @@ function detectHookCall(text: string): HookKeyword | undefined {
     else {
       // 其他 Hooks 的通用模式
       pattern = new RegExp(
-        `(?:^|[^a-zA-Z0-9_$.]|[;,{=])` +           // 确保前面不是标识符的一部分
+        `(?:^|[^a-zA-Z0-9_$.]|[;,{(=])` +           // 确保前面是语句边界
         `\\s*` +                                    // 可选空白
         `(?:const|let|var)?` +                     // 可选变量声明
         `\\s*` +                                    // 可选空白
-        `(?:\\[?[\\w,\\s]*\\]?)?` +                // 可选解构
-        `\\s*=?\\s*` +                             // 可选赋值
+        `(?:\\[.*?\\])?` +                         // 可选解构（如 [user, setUser]）
+        `\\s*=?\\s*` +                             // 可选等号和空白
         `(?:React\\.)?` +                          // 可选 React.
         `(${hook})` +                              // Hook 名称
         `\\s*(?:<[^>]*>)?\\s*\\(`,                 // 可选泛型和开括号
@@ -474,15 +520,16 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
     return;
   }
   
+  const doc = editor.document;
+
+  // 性能检查
+  if (doc.lineCount > 10000) {
+    return;
+  }
+
   isApplyingDecorations = true;
   
   try {
-    const doc = editor.document;
-
-    // 性能检查
-    if (doc.lineCount > 10000) {
-      return;
-    }
 
   // 获取缓存或计算
   const docUri = doc.uri.toString();
@@ -505,7 +552,7 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
   }
 
   // 清除旧装饰
-  stripeTypeCache.forEach((dt) => editor.setDecorations(dt, []));
+  decorationCache.forEach((dt) => editor.setDecorations(dt, []));
   // 清除旧的注释装饰
   editor.setDecorations(annotationType, []);
 
@@ -524,7 +571,7 @@ export function applyHooksAndRegionsDecorations(editor: vscode.TextEditor): void
     // 将 Hook 类型转换为小写以匹配颜色配置
     const colorKey = type.toLowerCase();
     const color = colorScheme[colorKey] || colorScheme['default'];
-    const dt = getBackgroundDecoration(color);
+    const dt = getHookDecoration(color, type);
     editor.setDecorations(dt, ranges);
   }
 
@@ -597,8 +644,8 @@ export function refreshFunctionDecorations(): void {
  * 清理资源
  */
 export function disposeFunctionDecorations(): void {
-  stripeTypeCache.forEach((dt) => dt.dispose());
-  stripeTypeCache.clear();
+  decorationCache.forEach((dt) => dt.dispose());
+  decorationCache.clear();
   itemCache.clear();
 }
 
