@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [4.4.0](https://github.com/DianaLeoTang/PrismJSX/compare/v4.3.0...v4.4.0) (2025-10-28)
+
+
+### ♻️ 代码重构
+
+* delete demo code ([6f1b533](https://github.com/DianaLeoTang/PrismJSX/commit/6f1b53311d314e85f968b76f9bcccf8da630779a))
+
+
+### 🐛 Bug 修复
+
+* 解决多次修改配置文件，配置不生效的问题 ([23dee52](https://github.com/DianaLeoTang/PrismJSX/commit/23dee5233787e2779f186ff4b30da82593e1f0c1))
+
+
+### ✨ 新功能
+
+*  更新项目配置项支持底色和彩虹条两种颜色切换 ([f75a7a6](https://github.com/DianaLeoTang/PrismJSX/commit/f75a7a6298baccedb3361975c2d49f2e7878e0c2))
+* region区域功能调整，更新readme文件 ([9321b07](https://github.com/DianaLeoTang/PrismJSX/commit/9321b0770b63c2e2d133d816ec2eec06ac26769a))
+* 仅在颜色发生变化时重新创建装饰类型 ([1b3b4ef](https://github.com/DianaLeoTang/PrismJSX/commit/1b3b4ef76f5a9a5fd3a19cf408e079b57ad6ff51))
+* 在底色模式下，如果用户配置了透明度，使用用户配置的；如果用户配置的透明度 >= 0.9，使用 0.9，为了保持鼠标高亮的效果可以展示出来 ([21a4ff2](https://github.com/DianaLeoTang/PrismJSX/commit/21a4ff2d8417aaa2ee2a6d9e3ee072b3f38b3ac7))
+* 增加两种配置可选项hooks也支持底色展示或者边上彩虹条展示，彩虹条时可配置宽度，底色展示时最大透明度是0.9 ([3c21c2f](https://github.com/DianaLeoTang/PrismJSX/commit/3c21c2fa80aae92006655216c112baf2d56fb544))
+* 增加对多种颜色设置的适配，包括rgb,rgba,#aaa,#aaaaaa这四种格式 ([c30cf65](https://github.com/DianaLeoTang/PrismJSX/commit/c30cf65278f75fb634a0cdb3b55c3d95e7de7db4))
+* 开启两种配置，如果选择侧边彩虹条展示，用用户自定义的原生颜色，如果选择为底色展示，没有配置透明度，默认调整为0.9 ([a4aaa24](https://github.com/DianaLeoTang/PrismJSX/commit/a4aaa2458c1698c6da4829b0138f608d8dbaa996))
+* 根据最新的核心代码，更新对项目功能的说明文件 ([7edb784](https://github.com/DianaLeoTang/PrismJSX/commit/7edb7845fe75dcd0251b49ad2d409b6c71e0e7c9))
+* 读取用户显式配置的设置值（工作区文件夹 > 工作区 > 全局） ([86c77fa](https://github.com/DianaLeoTang/PrismJSX/commit/86c77fa9905d44c0d1a6eeab2f8a360856b91705))
+* 调整颜色不透明度，解决鼠标高亮展示不出来的问题 ([3811e69](https://github.com/DianaLeoTang/PrismJSX/commit/3811e69d003cf24eaed413884e6dbef2718104d4))
+
 ## [4.3.0](https://github.com/DianaLeoTang/PrismJSX/compare/v4.2.0...v4.3.0) (2025-10-24)
 
 
