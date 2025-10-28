@@ -12,6 +12,8 @@
   - `sunset`（日落）- 暖色调，温暖活力
   - `forest`（森林）- 绿色系，沉稳专注
   - `neon`（霓虹）- 荧光色，炫酷科技感
+- **全屏背景着色**：函数区域使用全屏背景色，增强视觉区分度
+- **自动主题适配**：智能检测 VSCode 主题类型（亮色/暗色），动态调整配色
 - **React Hooks 精准着色**：四大核心 Hooks 使用不同颜色区分
   - `useState` - 状态管理（最常用）
   - `useEffect` - 副作用处理
@@ -26,20 +28,28 @@
   - 监听器 - 粉红色
   - 响应式数据 - 桃色
   - Vant 组件库 - 专用配色
-- **智能识别过滤**：自动忽略 JSX 内联函数、数组方法回调、TypeScript 类型定义
-- **Region 区域着色**：`// #region` 标记的区域使用绿色
+- **智能识别过滤**：自动忽略 JSX 内联函数、数组方法回调、TypeScript 类型定义、对象方法调用
+- **Region 区域着色**：`// #region` 标记的区域使用背景色高亮
 
 ### 🤖 AI 智能翻译
-- **✨ 开箱即用**：插件已内置私有云 API Key，无需任何配置，安装即可使用！
-- **私有云集成**：集成顺丰私有云 AI 模型，安全可靠，响应快速
+- **✨ 开箱即用**：插件已内置 API Key，无需任何配置，安装即可使用
+- **多模型支持**：支持主流 AI 模型
+  - OpenAI: gpt-4, gpt-3.5-turbo
+  - Claude: claude-3-sonnet-20240229
+  - 通义千问: qwen-turbo, qwen-plus
+  - DeepSeek: deepseek-chat, deepseek-coder
+  - Kimi: moonshot-v1-8k, moonshot-v1-32k
+  - Gemini: gemini-pro, gemini-pro-vision
+  - 私有云模型: aiplat/qwen2.5-72b-instruct
 - **智能函数名翻译**：自动将英文函数名翻译成中文语义
   - `getUserInfo` → `获取用户信息`
   - `handleSubmit` → `处理提交`
   - `calculateTotal` → `计算总计`
-- **优先级翻译系统**：三层优先级智能翻译
-  - 最高优先级：当前文件可见区域
-  - 中优先级：当前文件不可见区域
-  - 低优先级：其他打开的文件
+- **优先级翻译系统**：三层优先级智能翻译，滚动时优先翻译可见区域
+  - 最高优先级：当前文件可见区域（立即翻译）
+  - 中优先级：当前文件不可见区域（后台翻译）
+  - 低优先级：其他打开的文件（最后翻译）
+- **可见区域监控**：实时监听编辑器滚动，优先翻译可见代码
 - **持久化缓存**：翻译结果自动保存到本地，重启后无需重新翻译
 - **智能缓存**：已翻译的函数名会被缓存，响应即时
 - **失败降级**：AI 翻译失败时自动显示原函数名，不影响使用
@@ -181,111 +191,113 @@ const handleSubmit = () => {  // Vue函数
   - `neon`（霓虹）- 荧光色，炫酷科技感
 
 ### 🎯 自定义颜色配置
-- `codehue.regionColor`: Region 区域的背景颜色（例如：#A7FFEB）
+- `codehue.regionColor`: Region 区域的背景颜色（例如：rgba(76, 175, 80, 0.12)）
 - `codehue.customHookColors`: React Hooks 自定义颜色配置（JSON 数组格式）
 
 #### 自定义 Hooks 颜色示例：
 ```json
 "codehue.customHookColors": [
   {
-    "tag": "useState",
+    "tag": "usestate",
     "color": "#FF8A65"
   },
   {
-    "tag": "useEffect", 
+    "tag": "useeffect", 
     "color": "#A7FFEB"
   },
   {
-    "tag": "useMemo",
+    "tag": "usememo",
     "color": "#FFEB3B"
   },
   {
-    "tag": "useCallback",
+    "tag": "usecallback",
     "color": "#A5F3A5"
   },
   {
-    "tag": "useRef",
+    "tag": "useref",
     "color": "#FF6B6B"
   },
   {
-    "tag": "useContext",
+    "tag": "usecontext",
     "color": "#4ECDC4"
   },
   {
-    "tag": "useReducer",
+    "tag": "usereducer",
     "color": "#45B7D1"
   },
   {
-    "tag": "useLayoutEffect",
+    "tag": "uselayouteffect",
     "color": "#96CEB4"
   },
   {
-    "tag": "useImperativeHandle",
+    "tag": "useimperativehandle",
     "color": "#FFEAA7"
   },
   {
-    "tag": "useDebugValue",
+    "tag": "usedebugvalue",
     "color": "#DDA0DD"
   },
   {
-    "tag": "useDeferredValue",
+    "tag": "usedeferredvalue",
     "color": "#98D8C8"
   },
   {
-    "tag": "useTransition",
+    "tag": "usetransition",
     "color": "#F7DC6F"
   },
   {
-    "tag": "useId",
+    "tag": "useid",
     "color": "#BB8FCE"
   },
   {
-    "tag": "useSyncExternalStore",
+    "tag": "usesyncexternalstore",
     "color": "#85C1E9"
   },
   {
-    "tag": "useInsertionEffect",
+    "tag": "useinsertioneffect",
     "color": "#F8C471"
   }
 ]
 ```
 
+**💡 注意**：Hook 名称必须使用**小写字母**（如：`usestate` 而不是 `useState`）
+
 ### 🎯 支持的 React Hooks
 
-CodeHue 现在支持以下 React Hooks 的颜色自定义：
+CodeHue 支持自定义以下 React Hooks 的颜色：
 
 #### 基础 Hooks
-- `useState` - 状态管理
-- `useEffect` - 副作用处理
-- `useContext` - 上下文消费
+- `usestate` - 状态管理
+- `useeffect` - 副作用处理
+- `usecontext` - 上下文消费
 
 #### 额外 Hooks
-- `useReducer` - 状态管理
-- `useCallback` - 记忆回调
-- `useMemo` - 记忆化计算
-- `useRef` - 引用管理
-- `useImperativeHandle` - 命令式句柄
-- `useLayoutEffect` - 布局副作用
-- `useDebugValue` - 调试值
+- `usereducer` - 状态管理
+- `usecallback` - 记忆回调
+- `usememo` - 记忆化计算
+- `useref` - 引用管理
+- `useimperativehandle` - 命令式句柄
+- `uselayouteffect` - 布局副作用
+- `usedebugvalue` - 调试值
 
 #### 并发特性 Hooks
-- `useDeferredValue` - 延迟值
-- `useTransition` - 过渡状态
-- `useId` - 唯一标识
-- `useSyncExternalStore` - 外部同步
-- `useInsertionEffect` - 插入副作用
+- `usedeferredvalue` - 延迟值
+- `usetransition` - 过渡状态
+- `useid` - 唯一标识
+- `usesyncexternalstore` - 外部同步
+- `useinsertioneffect` - 插入副作用
 
 ### ⚙️ 功能配置
 - `codehue.enableSemanticComments`: 启用中文语义注释（默认：true）
 
 ### 🤖 AI 翻译配置
 - `codehue.enableAITranslation`: 启用 AI 智能翻译（默认：true）
-- `codehue.aiApiKey`: AI 模型 API Key（请填入您自己的 API Key）
-- `codehue.aiModelBaseUrl`: AI 模型的基础 URL（可填入域名，如 `https://api.deepseek.com`，也支持带版本的 `https://api.deepseek.com/v1` 或直接填写完整的 `.../chat/completions` 接口地址）
-- `codehue.aiModelName`: AI 模型名称（请根据您的 API 提供商填入正确的模型名称）
-  - `aiplat/qwen2.5-72b-instruct`（推荐，翻译质量最高）
-  - `aiplat/qwen2.5-vl-72b`（视觉语言模型）
-  - `Qwen3-4B`（轻量模型，响应快）
+- `codehue.aiApiKey`: AI 模型 API Key（留空将使用内置默认服务）
+- `codehue.aiModelBaseUrl`: AI 模型的完整 API 地址（留空将使用内置默认服务）
+  - 示例：`https://api.openai.com/v1`
+  - 示例：`https://api.deepseek.com/v1`
+  - 示例：`https://api.example.com/v1/chat/completions`
+- `codehue.aiModelName`: AI 模型名称（留空将使用内置默认模型）
 
 ### 📝 注释配置
 - `codehue.enableSemanticComments`: 是否显示语义化注释（默认：true）
@@ -355,36 +367,34 @@ CodeHue 现在支持以下 React Hooks 的颜色自定义：
 | `useCallback` | 🔵 超亮青 `#4DD0E1` | 回调记忆 |
 | Region | 🟢 超亮绿 `#A5D6A7` | 区域标识 |
 
-### 🔧 支持的 React Hooks
-**四大核心 Hooks**（重点支持）：
-- `useState` - 状态管理
-- `useEffect` - 副作用处理  
-- `useMemo` - 记忆化计算
-- `useCallback` - 回调记忆
-
-> **💡 智能着色策略**：专注于四大最常用的 Hooks，使用差异明显的颜色进行区分，确保视觉层次清晰。其他 Hooks 暂不进行着色，避免视觉干扰。
+> **💡 智能着色策略**：CodeHue 主要对四大核心 Hooks 进行默认着色，使用差异明显的颜色进行区分，确保视觉层次清晰。同时支持通过自定义配置为 15+ Hooks 自定义颜色。
 
 ## 🔧 技术特性
 
 - **零配置**：安装即用，无需额外设置
 - **🎨 智能主题适配**：自动检测 VSCode 主题类型（亮色/暗色），动态切换最佳配色方案
-- **高性能**：智能缓存，支持大文件（10000+ 行），防抖优化，避免频繁重绘
+- **高性能**：智能缓存，支持大文件（10000+ 行），防抖优化（150ms），避免频繁重绘
 - **实时更新**：代码变化时自动更新装饰，文档版本缓存避免重复处理
 - **主题切换响应**：切换主题时立即更新颜色，无需手动刷新
 - **多语言支持**：TypeScript, JavaScript, TSX, JSX, Vue, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Dart, Scala, Perl, R, Lua
-- **Vue 单文件组件支持**：完整的 Vue SFC 解析和着色
+- **Vue 单文件组件完整支持**：完整的 Vue SFC 解析和着色
+  - Composition API（ref, reactive, computed, watch）
+  - 生命周期钩子（onMounted, onUnmounted, onUpdated 等）
+  - 模板指令（v-if, v-for, v-model, v-show 等）
+  - Vant 组件库高频组件识别
 - **智能识别**：精准识别四大核心 React Hooks，智能过滤不需要着色的代码
 - **优先级翻译系统**：三层优先级智能翻译，可见区域优先，提升用户体验
-- **持久化缓存**：翻译结果自动保存到本地，重启后无需重新翻译
-- **速率控制**：智能请求间隔控制，避免 API 限制和 429 错误
+- **持久化缓存**：翻译结果自动保存到本地磁盘，重启后无需重新翻译
+- **速率控制**：智能请求间隔控制（3秒间隔），避免 API 限制和 429 错误
 - **失败降级**：AI 翻译失败时自动显示原函数名，不影响基本功能
 - **环境变量支持**：开发环境使用 .env 文件，生产环境使用构建脚本注入
+- **配置热加载**：配置变更时自动应用，无需手动刷新
 
 ## 🤖 AI 智能翻译详解
 
-CodeHue 集成了顺丰私有云 AI 模型，可智能翻译函数名为中文语义。
+CodeHue 支持多种主流 AI 模型，可智能翻译函数名为中文语义。
 
-✨ **开箱即用**：插件已内置私有云 API Key，无需任何配置，安装即可使用！
+✨ **开箱即用**：插件已内置 API Key，无需任何配置，安装即可使用！
 
 ### 快速开始
 
@@ -392,27 +402,22 @@ CodeHue 集成了顺丰私有云 AI 模型，可智能翻译函数名为中文�
 2. **开始使用**：打开任意代码文件即可看到中文翻译
 3. **完成**：就是这么简单！
 
-### 支持的模型
-
-- `aiplat/qwen2.5-72b-instruct` - Qwen2.5 72B 指令模型（推荐，翻译质量最高）
-- `aiplat/qwen2.5-vl-72b` - Qwen2.5 VL 72B 视觉语言模型
-- `Qwen3-4B` - Qwen3 4B 轻量模型（响应快）
-
 ### 工作原理
 
-- **私有云集成**：使用顺丰私有云 AI 模型，安全可靠，无需担心数据泄露
-- **自动翻译**：插件内置 API Key，启用后自动调用私有云 AI 模型翻译
+- **多模型支持**：支持所有主流 AI 提供商，灵活配置
+- **自动翻译**：启用后自动调用 AI 模型翻译函数名
 - **三层优先级翻译系统**：
   - 最高优先级：当前文件可见区域（立即翻译）
   - 中优先级：当前文件不可见区域（后台翻译）
   - 低优先级：其他打开的文件（最后翻译）
+- **可见区域监控**：实时监听编辑器滚动，优先翻译可见代码
 - **持久化缓存**：翻译结果自动保存到本地磁盘，重启后无需重新翻译
 - **智能缓存**：已翻译的函数名会被缓存，无需重复调用 API，响应即时
 - **速率控制**：智能请求间隔控制（3秒间隔），避免 API 限制
 - **失败降级**：AI 翻译失败时自动显示原函数名，不影响使用
 - **一键禁用**：可通过 `codehue.enableAITranslation` 快速禁用 AI 翻译
 
-### 高级配置
+### 自定义配置
 
 如需使用自定义 API Key 或模型：
 
@@ -420,8 +425,8 @@ CodeHue 集成了顺丰私有云 AI 模型，可智能翻译函数名为中文�
 {
   "codehue.enableAITranslation": true,
   "codehue.aiApiKey": "your-api-key",
-  "codehue.aiModelBaseUrl": "https://api.example.com/v1",
-  "codehue.aiModelName": "aiplat/qwen2.5-72b-instruct"
+  "codehue.aiModelBaseUrl": "https://api.openai.com/v1",
+  "codehue.aiModelName": "gpt-4"
 }
 ```
 
@@ -430,16 +435,17 @@ CodeHue 集成了顺丰私有云 AI 模型，可智能翻译函数名为中文�
 - [x] ~~自定义颜色方案~~ ✅ 已实现六大主题
 - [x] ~~AI 驱动的函数名翻译~~ ✅ 已实现智能翻译
 - [x] ~~支持更多编程语言~~ ✅ 已支持多种编程语言
-- [x] ~~私有云 AI 集成~~ ✅ 已集成顺丰私有云 AI 模型
+- [x] ~~多模型 AI 支持~~ ✅ 已支持主流 AI 提供商
 - [x] ~~持久化缓存~~ ✅ 已实现翻译结果本地保存
 - [x] ~~优先级翻译系统~~ ✅ 已实现三层优先级翻译
 - [x] ~~React Hooks 精准识别~~ ✅ 已实现四大核心 Hooks 着色
 - [x] ~~智能过滤系统~~ ✅ 已实现 JSX、数组方法等过滤
 - [x] ~~Vue 组件支持~~ ✅ 已实现 Vue SFC 完整着色和注释
 - [x] ~~Vant 组件库支持~~ ✅ 已实现 Vant 组件识别和着色
+- [x] ~~全屏背景着色~~ ✅ 已实现全屏背景展示
+- [x] ~~自定义 Hooks 颜色~~ ✅ 已实现 15+ Hooks 颜色自定义
 - [ ] 集成 JSDoc 注释
 - [ ] 函数复杂度可视化
-- [ ] 自定义颜色配置
 - [ ] 批量翻译功能
 - [ ] 代码结构分析
 - [ ] 智能代码建议
@@ -450,26 +456,31 @@ Apache License 2.0
 
 ---
 
-**版本**: 4.0.0  
+**版本**: 4.3.0  
 **兼容性**: VSCode ^1.85.0  
-**支持语言**: TypeScript, JavaScript, TSX, JSX, Vue
+**支持语言**: TypeScript, JavaScript, TSX, JSX, Vue, Python, Java, C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Dart, Scala, Perl, R, Lua
 ## 💡 使用技巧
 
 1. **🌈 主题切换**：按 `Cmd+K Cmd+T`（Mac）或 `Ctrl+K Ctrl+T`（Windows/Linux）切换主题，颜色会自动适配
    - 亮色主题：深色调配色，对比度高
    - 暗色主题：明亮色调配色，清晰易读
-2. **Region 标记**：使用 `// #region` 标记代码块，获得统一的绿色着色
+2. **Region 标记**：使用 `// #region` 标记代码块，获得统一的背景着色
 3. **React Hooks 识别**：四大核心 Hooks 会自动着色和注释
    - `useState` - 状态管理（橙色/黄色）
    - `useEffect` - 副作用处理（蓝色/红色）
    - `useMemo` - 记忆化计算（紫色/蓝色）
    - `useCallback` - 回调记忆（青色/青色）
-4. **智能过滤**：JSX 内联函数、数组方法回调等会自动过滤，不会着色
+4. **智能过滤**：JSX 内联函数、数组方法回调、对象方法调用等会自动过滤，不会着色
 5. **Vue 组件着色**：Vue 单文件组件使用专用马卡龙色系，支持 Composition API、生命周期、指令等
+   - Composition API：ref, reactive, computed, watch
+   - 生命周期：onMounted, onUnmounted, onUpdated 等
 6. **Vant 组件支持**：自动识别 Vant 组件库组件，提供专用配色和注释
-7. **性能优化**：对于超大文件（>10000行），插件会自动跳过处理
-8. **配色调整**：在设置中切换六大主题方案，每种方案都有亮色/暗色版本
-9. **AI 翻译**：可见区域的函数名会优先翻译，提升用户体验
+7. **全屏背景展示**：代码区域使用全屏背景色，更直观醒目
+8. **自定义 Hooks 颜色**：在设置中配置 `codehue.customHookColors` 自定义任意 Hooks 颜色
+9. **性能优化**：对于超大文件（>10000行），插件会自动跳过处理
+10. **配色调整**：在设置中切换六大主题方案，每种方案都有亮色/暗色版本
+11. **AI 翻译优化**：可见区域的函数名会优先翻译，滚动时实时触发优先级翻译
+12. **配置热加载**：修改配置后自动应用，无需手动刷新
 
 ## 🐛 问题反馈
 
