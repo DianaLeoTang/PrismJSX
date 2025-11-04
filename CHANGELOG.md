@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.4.1](https://github.com/DianaLeoTang/PrismJSX/compare/v4.4.0...v4.4.1) (2025-11-04)
+
+
+### ✨ 新功能
+
+* 开启Vue代码中的彩虹条配置项，配置功能复用react的，不增加新的配置项 ([f1e944f](https://github.com/DianaLeoTang/PrismJSX/commit/f1e944f5f10705971be0c88c2cf4f3412e7bfa35))
+
 ## [4.4.0](https://github.com/DianaLeoTang/PrismJSX/compare/v4.3.0...v4.4.0) (2025-10-28)
 
 
