@@ -438,11 +438,14 @@ function findHooksAndRegions(doc: vscode.TextDocument): DecoratedItem[] {
       const range = getHookCallRange(doc, actualLine, hook);
       if (range) {
         
-        // 检查是否在排除区域内
+        // 检查是否在排除区域内（stripe 模式下，region 内的 hooks 应该被排除，避免与 region 装饰重叠）
         const isInSuppressedRange = suppressRanges.some(suppressRange => {
+          // 检查 range 是否与 suppressRange 有重叠（包括边界）
+          // 如果 range 的任何部分在 suppressRange 内，就认为在排除范围内
           return !(range.end.isBefore(suppressRange.start) || range.start.isAfter(suppressRange.end));
         });
 
+        // 只有在排除区域外的 hooks 才添加装饰
         if (!isInSuppressedRange) {
           items.push({
             range,
