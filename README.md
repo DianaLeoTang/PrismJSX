@@ -199,10 +199,10 @@ const handleSubmit = () => {  // Vue函数
   - `neon`（霓虹）- 荧光色，炫酷科技感
 
 ### 🎯 显示模式配置
-- `codehue.hooksDisplayMode`: Hooks 区域显示模式
+- `codehue.hooksDisplayMode`: Hooks 和 Vue 装饰显示模式（同时控制 React Hooks 和 Vue 组件装饰）
   - `background`（底色模式）- 整行背景色高亮（默认）
   - `stripe`（条带模式）- 左侧彩色条带
-- `codehue.hooksStripeWidth`: Hooks 左侧条带宽度（仅在 stripe 模式下生效，默认：3px）
+- `codehue.hooksStripeWidth`: Hooks 和 Vue 左侧条带宽度（仅在 stripe 模式下生效，默认：3px）
 - `codehue.regionDisplayMode`: Region 区域显示模式
   - `background`（底色模式）- 整行背景色高亮（默认）
   - `stripe`（条带模式）- 左侧彩色条带
@@ -488,6 +488,7 @@ Apache License 2.0
 2. **🎨 显示模式切换**：在设置中切换 `codehue.hooksDisplayMode` 和 `codehue.regionDisplayMode`
    - `background`：整行背景色高亮，视觉冲击力强
    - `stripe`：左侧彩色条带，简洁美观
+   - **注意**：`hooksDisplayMode` 同时控制 React Hooks 和 Vue 装饰的显示模式
 3. **Region 标记**：使用 `// #region 标签名` 和 `// #endregion` 标记代码块，支持嵌套和标签匹配
 4. **React Hooks 识别**：15+ React Hooks 会自动着色和注释
    - 核心 Hooks：`useState`、`useEffect`、`useMemo`、`useCallback`
@@ -498,6 +499,7 @@ Apache License 2.0
    - Composition API：ref, reactive, computed, watch
    - 生命周期：onMounted, onUnmounted, onUpdated, onBeforeMount 等
    - 模板指令：v-if, v-for, v-model, v-show, v-bind, v-on 等
+   - 显示模式：Vue 装饰支持背景色和左侧条带两种模式，通过 `hooksDisplayMode` 配置（与 React Hooks 共用）
 7. **Vant 组件支持**：自动识别 Vant 组件库组件，提供专用配色和注释
    - 高频组件：van-popup, van-field, van-list, van-button
    - 中频组件：van-tabs, van-cell, van-dialog, van-toast, van-picker
